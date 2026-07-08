@@ -21,6 +21,11 @@ CORRAL_AGENT=claude
 # Override per-run with: corral spawn <repo> --permission-mode <mode>
 # CORRAL_PERMISSION_MODE=
 
+# Run a repo's committed .corral/setup.sh in the agent pane before the agent
+# starts (chained with &&, so the agent only launches if setup succeeds).
+# Set to 0 to disable. Override per-run with: corral spawn <repo> --no-setup
+# CORRAL_SETUP=1
+
 # Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
 CORRAL_RATIO=0.4
 

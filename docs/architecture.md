@@ -24,7 +24,7 @@ herdr worktree create --cwd <repo> --branch <b> --label <l> --no-focus
 herdr pane split <root>  --direction right --ratio <r>   # agent | right column
 herdr pane split <right> --direction down  --ratio 0.5   # right column -> 2 stacked
 
-herdr pane run <root> <agent>                            # launch the agent
+herdr pane run <root> "bash .corral/setup.sh && <agent>" # setup (if committed) then agent
 
 herdr workspace focus <workspace>                        # jump to it
 ```
