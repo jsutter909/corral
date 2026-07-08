@@ -18,6 +18,8 @@ Create an isolated agent workspace in a fresh git worktree.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--agent <name>` | `claude` | Agent to launch in the left pane, or `none` for a blank shell. Any herdr-integrated agent works (`claude`, `codex`, `copilot`, `droid`, `opencode`, `cursor`, …). |
+| `--model <name>` | Claude's default | Model for the Claude agent. Applies to the `claude` agent only; ignored (with a warning) for others. |
+| `--permission-mode <mode>` | Claude's default | Claude permission/edit mode, e.g. `acceptEdits`, `plan`. `claude` agent only. |
 | `--base <ref>` | current HEAD | Base ref the new worktree branches from. |
 | `--ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
 | `--label <text>` | branch basename | herdr workspace label. |
@@ -29,6 +31,7 @@ Create an isolated agent workspace in a fresh git worktree.
 corral spawn ~/dev/app
 corral spawn ~/dev/app feature/checkout
 corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
+corral spawn ~/dev/app --model opus --permission-mode acceptEdits
 corral spawn ~/dev/app --agent none        # just the worktree + terminals
 ```
 

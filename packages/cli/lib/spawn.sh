@@ -24,6 +24,11 @@ Options:
   --agent <name>    Agent to launch in the left pane, or "none" for a blank shell
                     (default: $CORRAL_AGENT). Any herdr-integrated agent works:
                     claude, codex, copilot, droid, opencode, cursor, ...
+  --model <name>    Model for the Claude agent (default: ${CORRAL_MODEL:-Claude default}).
+                    claude agent only.
+  --permission-mode <mode>
+                    Claude permission/edit mode, e.g. acceptEdits, plan
+                    (default: ${CORRAL_PERMISSION_MODE:-Claude default}). claude agent only.
   --base <ref>      Base ref to branch the worktree from (default: current HEAD)
   --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
   --label <text>    Workspace label (default: derived from the branch name)
@@ -49,6 +54,7 @@ _spawn_cleanup() {
 cmd_spawn() {
   local repo_arg="" branch="" base="$CORRAL_BASE" ratio="$CORRAL_RATIO"
   local agent="$CORRAL_AGENT" label="" focus=1
+  local model="$CORRAL_MODEL" permission_mode="$CORRAL_PERMISSION_MODE"
 
   # First non-flag positional is the repo, second is the branch.
   local positional=()
@@ -56,6 +62,8 @@ cmd_spawn() {
     case "$1" in
       -h|--help) spawn_usage; return 0 ;;
       --agent)   agent="${2:?--agent needs a value}"; shift 2 ;;
+      --model)   model="${2:?--model needs a value}"; shift 2 ;;
+      --permission-mode) permission_mode="${2:?--permission-mode needs a value}"; shift 2 ;;
       --base)    base="${2:?--base needs a value}"; shift 2 ;;
       --ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
       --label)   label="${2:?--label needs a value}"; shift 2 ;;
@@ -112,9 +120,18 @@ cmd_spawn() {
   split_resp="$(herdr_do pane split "$rtop" --direction down --ratio 0.5 --no-focus)"
   rbot="$(json_get "$split_resp" '.result.pane.pane_id')"
 
-  # 4) Launch the agent in the left pane (unless "none").
+  # 4) Launch the agent in the left pane (unless "none"). --model and
+  #    --permission-mode are Claude-specific, so only append them for claude;
+  #    warn (rather than silently pass unknown flags) if set for another agent.
   if [ "$agent" != "none" ] && [ -n "$agent" ]; then
-    herdr_do pane run "$left" "$agent" >/dev/null
+    local launch="$agent"
+    if [ "$agent" = "claude" ]; then
+      [ -n "$model" ]           && launch="$launch --model $model"
+      [ -n "$permission_mode" ] && launch="$launch --permission-mode $permission_mode"
+    elif [ -n "$model" ] || [ -n "$permission_mode" ]; then
+      warn "--model/--permission-mode only apply to the claude agent; ignoring for '$agent'"
+    fi
+    herdr_do pane run "$left" "$launch" >/dev/null
   fi
 
   # 5) Focus the new workspace (lands on the left/agent pane).
@@ -129,6 +146,10 @@ cmd_spawn() {
   printf '    branch   %s\n'  "$branch"   >&2
   printf '    worktree %s\n'  "$wt"       >&2
   printf '    agent    %s\n'  "$agent"    >&2
+  if [ "$agent" = "claude" ]; then
+    [ -n "$model" ]           && printf '    model    %s\n' "$model"           >&2
+    [ -n "$permission_mode" ] && printf '    mode     %s\n' "$permission_mode" >&2
+  fi
   printf '    panes    agent=%s  term-top=%s  term-bottom=%s\n' "$left" "$rtop" "$rbot" >&2
   printf '\n  Tear down when finished:  %scorral close %s%s\n' "$_c_dim" "$ws" "$_c_rst" >&2
 }

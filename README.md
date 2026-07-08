@@ -90,6 +90,8 @@ override them.
 ```sh
 # ~/.config/corral/config.sh
 CORRAL_AGENT=claude          # or codex, copilot, droid, opencode, cursor, none
+CORRAL_MODEL=                # model for the claude agent ("" = Claude's default)
+CORRAL_PERMISSION_MODE=      # claude edit mode: acceptEdits, plan, … (claude only)
 CORRAL_RATIO=0.4             # agent pane width share, 0..1
 CORRAL_BRANCH_PREFIX=agent   # <prefix>/<repo>-<timestamp>
 CORRAL_BASE=main             # base ref for new worktrees ("" = current HEAD)

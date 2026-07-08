@@ -17,6 +17,8 @@ corral resolves each setting in this order (later wins):
 | Variable | Flag | Default | Meaning |
 | --- | --- | --- | --- |
 | `CORRAL_AGENT` | `--agent` | `claude` | Agent launched in the left pane, or `none`. |
+| `CORRAL_MODEL` | `--model` | `` (Claude's default) | Model for the Claude agent (claude only). |
+| `CORRAL_PERMISSION_MODE` | `--permission-mode` | `` (Claude's default) | Claude permission/edit mode, e.g. `acceptEdits`, `plan` (claude only). |
 | `CORRAL_RATIO` | `--ratio` | `0.4` | Agent (left) pane width share, `0..1`. |
 | `CORRAL_BRANCH_PREFIX` | — | `agent` | Prefix for auto branch names: `<prefix>/<repo>-<timestamp>`. |
 | `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |

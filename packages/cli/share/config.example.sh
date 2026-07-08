@@ -12,6 +12,15 @@
 # blank shell. Override per-run with: corral spawn <repo> --agent <name>
 CORRAL_AGENT=claude
 
+# Model for the Claude agent (claude only). Empty = Claude's default.
+# Override per-run with: corral spawn <repo> --model <name>
+# CORRAL_MODEL=
+
+# Claude permission/edit mode (claude only): default, acceptEdits, plan,
+# bypassPermissions. Empty = Claude's default.
+# Override per-run with: corral spawn <repo> --permission-mode <mode>
+# CORRAL_PERMISSION_MODE=
+
 # Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
 CORRAL_RATIO=0.4
 
