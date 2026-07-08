@@ -100,6 +100,10 @@ CORRAL_BRANCH_PREFIX=agent   # <prefix>/<repo>-<timestamp>
 CORRAL_BASE=main             # base ref for new worktrees ("" = current HEAD)
 ```
 
+A repo can also commit a `.corral/setup.sh` to prepare each workspace (install
+deps, copy a `.env`, …) — spawn runs it in the agent pane and only starts the
+agent once it succeeds.
+
 See [`docs/configuration.md`](docs/configuration.md) and
 [`packages/cli/share/config.example.sh`](packages/cli/share/config.example.sh).
 

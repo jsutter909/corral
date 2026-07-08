@@ -25,6 +25,12 @@ Create an isolated agent workspace in a fresh git worktree.
 | `--ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
 | `--label <text>` | branch basename | herdr workspace label. |
 | `--no-focus` | (focus) | Create the workspace without switching to it. |
+| `--no-setup` | (run if present) | Skip the repo's committed `.corral/setup.sh`. |
+
+If the repo commits a `.corral/setup.sh`, spawn chains it before the agent in
+the agent pane (`bash .corral/setup.sh && <agent>`): the agent only starts once
+setup succeeds, and a failure stays visible in the pane. See
+[per-repo configuration](configuration.md#per-repo-configuration-corral).
 
 **Examples**
 

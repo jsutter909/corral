@@ -35,6 +35,10 @@ Options:
   --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
   --label <text>    Workspace label (default: derived from the branch name)
   --no-focus        Create the workspace without switching focus to it
+  --no-setup        Skip the repo's .corral/setup.sh (also: CORRAL_SETUP=0)
+
+If the repo commits a .corral/setup.sh, spawn runs it in the agent pane first
+(bash .corral/setup.sh && <agent>) — the agent only starts once setup succeeds.
 
 Examples:
   corral spawn ~/dev/app
@@ -54,9 +58,37 @@ _spawn_cleanup() {
   fi
 }
 
+# Compose the command string for the agent pane: the repo's setup script
+# chained (&&) before the agent, so the agent only starts if setup succeeds.
+# The pane's cwd is the worktree, so the script path stays relative. A prompt
+# becomes the agent's first positional argument, shell-quoted so spaces and
+# metacharacters survive herdr running the command string.
+# Usage: spawn_launch_cmd <agent> <model> <permission_mode> <prompt> <setup 0|1>
+# Prints the command; prints nothing when there is nothing to run.
+spawn_launch_cmd() {
+  local agent="$1" model="$2" permission_mode="$3" prompt="$4" setup="$5"
+  local launch=""
+  if [ "$agent" != "none" ] && [ -n "$agent" ]; then
+    launch="$agent"
+    if [ "$agent" = "claude" ]; then
+      [ -n "$model" ]           && launch="$launch --model $model"
+      [ -n "$permission_mode" ] && launch="$launch --permission-mode $permission_mode"
+    fi
+    [ -n "$prompt" ] && launch="$launch $(shell_quote "$prompt")"
+  fi
+  if [ "$setup" = "1" ]; then
+    if [ -n "$launch" ]; then
+      launch="bash .corral/setup.sh && $launch"
+    else
+      launch="bash .corral/setup.sh"
+    fi
+  fi
+  printf '%s' "$launch"
+}
+
 cmd_spawn() {
   local repo_arg="" branch="" base="$CORRAL_BASE" ratio="$CORRAL_RATIO"
-  local agent="$CORRAL_AGENT" label="" focus=1
+  local agent="$CORRAL_AGENT" label="" focus=1 setup="$CORRAL_SETUP"
   local model="$CORRAL_MODEL" permission_mode="$CORRAL_PERMISSION_MODE"
   local prompt=""
 
@@ -73,6 +105,7 @@ cmd_spawn() {
       --ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
       --label)   label="${2:?--label needs a value}"; shift 2 ;;
       --no-focus) focus=0; shift ;;
+      --no-setup) setup=0; shift ;;
       --) shift; while [ $# -gt 0 ]; do positional+=("$1"); shift; done ;;
       -*) die "unknown option: $1 (try 'corral spawn --help')" ;;
       *)  positional+=("$1"); shift ;;
@@ -125,23 +158,29 @@ cmd_spawn() {
   split_resp="$(herdr_do pane split "$rtop" --direction down --ratio 0.5 --no-focus)"
   rbot="$(json_get "$split_resp" '.result.pane.pane_id')"
 
-  # 4) Launch the agent in the left pane (unless "none"). --model and
-  #    --permission-mode are Claude-specific, so only append them for claude;
-  #    warn (rather than silently pass unknown flags) if set for another agent.
-  if [ "$agent" != "none" ] && [ -n "$agent" ]; then
-    local launch="$agent"
-    if [ "$agent" = "claude" ]; then
-      [ -n "$model" ]           && launch="$launch --model $model"
-      [ -n "$permission_mode" ] && launch="$launch --permission-mode $permission_mode"
-    elif [ -n "$model" ] || [ -n "$permission_mode" ]; then
-      warn "--model/--permission-mode only apply to the claude agent; ignoring for '$agent'"
-    fi
-    # A --prompt becomes the agent's first positional argument. Quote it so
-    # spaces and shell metacharacters survive herdr running the command string.
-    [ -n "$prompt" ] && launch="$launch $(shell_quote "$prompt")"
-    herdr_do pane run "$left" "$launch" >/dev/null
-  elif [ -n "$prompt" ]; then
+  # 4) Launch in the left pane. If the repo ships a .corral/setup.sh (present
+  #    in the fresh worktree because it's checked out from the base ref), chain
+  #    it before the agent: the agent only starts once setup succeeds, and a
+  #    failure stays visible in the pane (the workspace is kept, no rollback).
+  local run_setup=0
+  if [ "$setup" = "1" ] && [ -f "$wt/.corral/setup.sh" ]; then
+    run_setup=1
+  fi
+
+  # --model, --permission-mode, and --prompt only make sense for an agent;
+  # warn (rather than silently pass unknown flags) when they'd be dropped.
+  if [ "$agent" != "claude" ] && [ "$agent" != "none" ] && [ -n "$agent" ] \
+     && { [ -n "$model" ] || [ -n "$permission_mode" ]; }; then
+    warn "--model/--permission-mode only apply to the claude agent; ignoring for '$agent'"
+  fi
+  if { [ "$agent" = "none" ] || [ -z "$agent" ]; } && [ -n "$prompt" ]; then
     warn "--prompt has no effect with --agent none; ignoring"
+  fi
+
+  local launch
+  launch="$(spawn_launch_cmd "$agent" "$model" "$permission_mode" "$prompt" "$run_setup")"
+  if [ -n "$launch" ]; then
+    herdr_do pane run "$left" "$launch" >/dev/null
   fi
 
   # 5) Focus the new workspace (lands on the left/agent pane).
@@ -156,6 +195,9 @@ cmd_spawn() {
   printf '    branch   %s\n'  "$branch"   >&2
   printf '    worktree %s\n'  "$wt"       >&2
   printf '    agent    %s\n'  "$agent"    >&2
+  if [ "$run_setup" -eq 1 ]; then
+    printf '    setup    .corral/setup.sh\n' >&2
+  fi
   if [ "$agent" = "claude" ]; then
     [ -n "$model" ]           && printf '    model    %s\n' "$model"           >&2
     [ -n "$permission_mode" ] && printf '    mode     %s\n' "$permission_mode" >&2

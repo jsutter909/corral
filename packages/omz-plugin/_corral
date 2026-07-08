@@ -139,6 +139,7 @@ _corral() {
             '--ratio[agent (left) pane share of width]:ratio (0..1):' \
             '--label[workspace label]:label:' \
             '--no-focus[create the workspace without switching focus to it]' \
+            '--no-setup[do not run the repo'\''s .corral/setup.sh]' \
             '1:repository directory:_directories' \
             '2::new branch name:_corral_new_branch' \
             && ret=0

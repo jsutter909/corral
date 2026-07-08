@@ -69,6 +69,7 @@ load_config() {
   local env_prefix="${CORRAL_BRANCH_PREFIX-}" env_base="${CORRAL_BASE-}"
   local env_worktrees="${CORRAL_WORKTREES_DIR-}"
   local env_model="${CORRAL_MODEL-}" env_permission_mode="${CORRAL_PERMISSION_MODE-}"
+  local env_setup="${CORRAL_SETUP-}"
 
   if [ -f "$CORRAL_CONFIG" ]; then
     # shellcheck disable=SC1090
@@ -82,6 +83,7 @@ load_config() {
   if [ -n "$env_worktrees" ]; then CORRAL_WORKTREES_DIR="$env_worktrees"; fi
   if [ -n "$env_model" ];           then CORRAL_MODEL="$env_model"; fi
   if [ -n "$env_permission_mode" ]; then CORRAL_PERMISSION_MODE="$env_permission_mode"; fi
+  if [ -n "$env_setup" ];           then CORRAL_SETUP="$env_setup"; fi
 
   # Built-in defaults for anything still unset.
   : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
@@ -91,6 +93,7 @@ load_config() {
   : "${CORRAL_WORKTREES_DIR:=$HOME/.herdr/worktrees}"  # where herdr checks out corral's worktrees
   : "${CORRAL_MODEL:=}"                 # model for the claude agent ("" = Claude's default)
   : "${CORRAL_PERMISSION_MODE:=}"       # claude permission/edit mode ("" = Claude's default)
+  : "${CORRAL_SETUP:=1}"                # run a repo's .corral/setup.sh before the agent (0 = never)
 }
 
 # ---------------------------------------------------------------------------
