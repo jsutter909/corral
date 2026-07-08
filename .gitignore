@@ -12,3 +12,10 @@ config.local.sh
 # Test / build scratch
 /tmp/
 *.log
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/

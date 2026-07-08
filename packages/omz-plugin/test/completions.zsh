@@ -8,7 +8,7 @@
 # (zsh/zpty), one fresh single-shot shell per test case:
 #
 #   1. spawn `zsh -f -i` under zpty with HOME pointed at a temp dir and a
-#      stub `corral` on PATH (canned `ls --json` output — no herdr server
+#      stub `corral` on PATH (canned `ls --tsv` output — no herdr server
 #      needed);
 #   2. for completion cases, source an init script that puts the plugin dir
 #      on fpath, runs a fresh compinit with a throwaway dump, and wraps
@@ -27,7 +27,7 @@
 # Run:   zsh packages/omz-plugin/test/completions.zsh
 # Exit:  0 all passed; 1 any assertion failed (diff printed); 2 setup error.
 # Needs: zsh with zpty/zselect/datetime modules (stock zsh; on CI:
-#        `apt-get install -y zsh`), jq, diff. No herdr, no real corral.
+#        `apt-get install -y zsh`), diff. No herdr, no real corral, no jq.
 
 emulate -L zsh
 setopt no_unset
@@ -58,19 +58,18 @@ mkdir -p $WORK/stub-ok $WORK/stub-fail $WORK/wt-a $WORK/wt-b
 
 # Canned workspaces. The second label contains a colon AND a space —
 # exercises _describe escaping end to end. Worktree dirs really exist so
-# ccd can cd into them.
-cat >$WORK/ls.json <<EOF
-[
-  {"workspace":"w4","label":"checkout-fix","repo":"app","branch":"corral/app-1","status":"busy","worktree":"$WORK/wt-a"},
-  {"workspace":"w7","label":"tax: rounding","repo":"app","branch":"bugfix/tax","status":"idle","worktree":"$WORK/wt-b"}
-]
-EOF
+# ccd can cd into them. Columns (corral ls --tsv):
+#   workspace  label  repo  branch  status  worktree
+printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+  w4 'checkout-fix'  app 'corral/app-1' busy "$WORK/wt-a" \
+  w7 'tax: rounding' app 'bugfix/tax'   idle "$WORK/wt-b" \
+  >$WORK/ls.tsv
 
 cat >$WORK/stub-ok/corral <<EOF
 #!/bin/sh
-# Fake corral: canned \`ls --json\`; no herdr server needed.
-if [ "\${1:-}" = "ls" ] && [ "\${2:-}" = "--json" ]; then
-  cat '$WORK/ls.json'
+# Fake corral: canned \`ls --tsv\`; no herdr server needed.
+if [ "\${1:-}" = "ls" ] && [ "\${2:-}" = "--tsv" ]; then
+  cat '$WORK/ls.tsv'
 fi
 exit 0
 EOF
@@ -351,12 +350,12 @@ expect_exact 'corral ide --ide <TAB> lists IDEs' \
 
 expect_exact 'corral ls --<TAB> lists ls flags' \
   $WORK/stub-ok 'corral ls --' \
-  --json --help
+  --json --tsv --help
 
 # Short flags appear alongside their long forms when a bare '-' is typed.
 expect_exact 'corral ls -<TAB> lists ls flags (short + long)' \
   $WORK/stub-ok 'corral ls -' \
-  -j --json -h --help
+  -j --json --tsv -h --help
 
 expect_exact 'corral prune --<TAB> lists prune flags' \
   $WORK/stub-ok 'corral prune --' \

@@ -1,0 +1,23 @@
+# Optional packaging metadata. corral runs straight from a checkout via
+# bin/corral (stdlib only, no build step) — this exists so `pip install`
+# works for people who prefer it.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corral-cli"
+version = "0.2.0"
+description = "Isolated AI-agent workspaces on top of herdr"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[project.scripts]
+corral = "corral.app:main"
+
+[project.urls]
+Homepage = "https://github.com/jsutter909/corral"
+
+[tool.setuptools.packages.find]
+where = ["src"]

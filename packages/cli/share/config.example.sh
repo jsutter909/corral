@@ -1,11 +1,17 @@
+# GENERATED FILE — do not edit by hand.
+# Source of truth: packages/cli/src/corral/settings.py
+# Regenerate with: python -m corral.generate (or: make generate)
+
 # corral config — copy to ~/.config/corral/config.sh and edit.
 #
 #   mkdir -p ~/.config/corral
 #   cp "$(dirname "$(readlink -f "$(command -v corral)")")/../share/config.example.sh" \
 #      ~/.config/corral/config.sh
 #
-# This file is sourced by corral as plain bash. Every value can also be set as a
-# CORRAL_* environment variable, and any command-line flag overrides both.
+# corral parses this file for plain CORRAL_* assignments (quotes and $HOME/~
+# expansion supported; arbitrary shell is ignored). Every value can also be
+# set as a CORRAL_* environment variable, and any command-line flag overrides
+# both.
 
 # Agent to launch in the left pane. Any herdr-integrated agent works
 # (claude, codex, copilot, droid, opencode, cursor, ...). Use "none" for a
@@ -20,6 +26,9 @@ CORRAL_AGENT=claude
 # bypassPermissions. Empty = Claude's default.
 # Override per-run with: corral spawn <repo> --permission-mode <mode>
 # CORRAL_PERMISSION_MODE=
+
+# Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
+CORRAL_RATIO=0.4
 
 # Run a repo's committed .corral/setup.sh in the agent pane before the agent
 # starts (chained with &&, so the agent only launches if setup succeeds).
@@ -41,9 +50,6 @@ CORRAL_AGENT=claude
 # one — a Host entry in your local ~/.ssh/config. Empty = this machine's
 # hostname. Override per-run with: corral open <workspace> --host <host>
 # CORRAL_SSH_HOST=
-
-# Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
-CORRAL_RATIO=0.4
 
 # Prefix for auto-generated branch names: <prefix>/<repo>-<timestamp>.
 CORRAL_BRANCH_PREFIX=agent

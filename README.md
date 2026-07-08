@@ -22,9 +22,10 @@ the whole thing down.
 
 - [`herdr`](https://herdr.dev) — the terminal workspace manager corral drives
 - `git`
-- `jq`
+- `python3` (3.9+, stdlib only — no packages to install)
 
-corral is pure Bash, so there's nothing to compile.
+corral runs straight from a checkout; there's nothing to compile and nothing
+to `pip install`.
 
 ## Install
 
@@ -89,8 +90,9 @@ explicitly pass `--idle`.
 
 ## Configuration
 
-Defaults live in `~/.config/corral/config.sh`; `CORRAL_*` env vars and CLI flags
-override them.
+Defaults live in `~/.config/corral/config.sh` (parsed for plain `CORRAL_*`
+assignments — existing configs keep working); `CORRAL_*` env vars and CLI
+flags override them.
 
 ```sh
 # ~/.config/corral/config.sh
@@ -143,27 +145,39 @@ Details and the herdr concepts involved: [`docs/architecture.md`](docs/architect
 ```
 corral/
 ├── packages/
-│   ├── cli/            # the corral CLI (this is what installs today)
-│   │   ├── bin/corral  # dispatcher
-│   │   ├── lib/        # one file per subcommand + common helpers
-│   │   ├── share/      # config.example.sh
-│   │   └── test/       # smoke tests
-│   └── omz-plugin/     # oh-my-zsh plugin: completions, aliases, ccd, prompt
-├── docs/               # usage, configuration, architecture
-├── install.sh          # curl-able installer
-└── Makefile            # install / link / lint / test
+│   ├── cli/                # the corral CLI (Python, stdlib only)
+│   │   ├── bin/corral      # launcher (symlinked onto PATH)
+│   │   ├── src/corral/     # the package: commands, registries, herdr client
+│   │   │   └── generate/   # renders the generated artifacts below
+│   │   ├── share/          # config.example.sh (generated)
+│   │   └── tests/          # unit + CLI-surface tests
+│   └── omz-plugin/         # oh-my-zsh plugin (generated): completions, aliases, ccd, prompt
+├── docs/                   # usage + configuration (generated), architecture
+├── install.sh              # curl-able installer
+└── Makefile                # install / link / generate / lint / test
 ```
 
 The repo is a monorepo on purpose — tooling grows alongside the CLI under
 `packages/`. See [`packages/README.md`](packages/README.md) for the plan.
 
+### Generated, not hand-maintained
+
+corral's command specs, settings, agents, and IDEs are each declared once, as
+Python registries. The command reference (`docs/usage.md`), the configuration
+guide (`docs/configuration.md`), the example config, and the entire oh-my-zsh
+plugin (`_corral` completions + `corral.plugin.zsh`) are **rendered from those
+registries** and checked in. Add a flag or an agent in one place, run
+`make generate`, and the parser, `--help`, docs, and tab completion all update
+together — CI fails if they drift.
+
 ## Development
 
 ```sh
-make link     # symlink the working tree's launcher into ~/.local/bin
-make test     # smoke tests + zsh completion tests (no herdr server needed)
-make lint     # shellcheck + zsh -n (if installed)
-make check    # lint + test
+make link       # symlink the working tree's launcher into ~/.local/bin
+make generate   # re-render docs + omz plugin from the registries
+make test       # python unit tests + zsh completion tests (no herdr server needed)
+make lint       # byte-compile, shellcheck install.sh, zsh -n the plugin
+make check      # lint + generated-artifact freshness + test
 ```
 
 Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).

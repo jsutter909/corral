@@ -1,9 +1,12 @@
-<!--
-  GENERATED FILE — do not edit by hand.
-  Source of truth: packages/cli/src/corral/settings.py (+ this module's prose)
-  Regenerate with: python -m corral.generate (or: make generate)
--->
+"""Render docs/configuration.md — the settings table comes straight from the
+settings registry; the surrounding prose lives here."""
 
+from __future__ import annotations
+
+from ..settings import SETTINGS, Setting
+from . import generated_header
+
+_INTRO = """\
 # corral — configuration
 
 corral resolves each setting in this order (later wins):
@@ -19,29 +22,14 @@ corral resolves each setting in this order (later wins):
 > `CORRAL_*` assignments are honored, never arbitrary shell. Values in
 > `config.sh` act as your team/personal defaults, while a one-off
 > `CORRAL_RATIO=0.5 corral spawn …` or a `--ratio` flag overrides them per run.
+"""
 
-## Settings
-
-| Variable | Flag | Default | Meaning |
-| --- | --- | --- | --- |
-| `CORRAL_AGENT` | `--agent` | `claude` | Agent launched in the left pane, or `none`. |
-| `CORRAL_MODEL` | `--model` | `` (Claude's default) | Model for the Claude agent (claude only). |
-| `CORRAL_PERMISSION_MODE` | `--permission-mode` | `` (Claude's default) | Claude permission/edit mode, e.g. `acceptEdits`, `plan` (claude only). |
-| `CORRAL_RATIO` | `--ratio` | `0.4` | Agent (left) pane width share, `0..1`. |
-| `CORRAL_SETUP` | `--no-setup` | `1` | Run a repo's committed `.corral/setup.sh` before the agent (`0` = never). |
-| `CORRAL_CLEANUP` | `--no-cleanup` | `1` | Run a worktree's `.corral/cleanup.sh` before removing it on close/prune (`0` = never). |
-| `CORRAL_IDE` | `--ide` | `vscode` | IDE opened by `corral open`: `vscode` or `cursor`. |
-| `CORRAL_SSH_HOST` | `--host` | `` (this machine's hostname) | SSH host in the Remote-SSH links `corral open` prints for remote (`herdr --remote`) sessions; must match a `Host` entry in your **local** `~/.ssh/config`. |
-| `CORRAL_BRANCH_PREFIX` | — | `agent` | Prefix for auto branch names: `<prefix>/<repo>-<timestamp>`. |
-| `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |
-| `CORRAL_WORKTREES_DIR` | — | `~/.herdr/worktrees` | Where herdr checks out corral's worktrees; corral only ever destroys worktrees under this directory. |
-| `CORRAL_CONFIG` | — | `~/.config/corral/config.sh` | Path to the config file itself. |
-
+_SETUP = """\
 ## Setting it up
 
 ```sh
 mkdir -p ~/.config/corral
-cp "$(dirname "$(readlink -f "$(command -v corral)")")/../share/config.example.sh" \
+cp "$(dirname "$(readlink -f "$(command -v corral)")")/../share/config.example.sh" \\
    ~/.config/corral/config.sh
 $EDITOR ~/.config/corral/config.sh
 ```
@@ -55,7 +43,9 @@ CORRAL_RATIO=0.4
 CORRAL_BRANCH_PREFIX=agent
 CORRAL_BASE=main
 ```
+"""
 
+_PER_REPO = """\
 ## Per-repo configuration: `.corral/`
 
 A repo can commit a `.corral/` directory to customize the workspaces corral
@@ -106,7 +96,9 @@ worktree.
 > Review it before closing a workspace you don't trust, or skip execution with
 > `--no-setup` / `--no-cleanup` (per run) or `CORRAL_SETUP=0` /
 > `CORRAL_CLEANUP=0` (globally).
+"""
 
+_TEAM = """\
 ## Team defaults
 
 You can share a config in your repo and have coworkers point `CORRAL_CONFIG`
@@ -115,3 +107,42 @@ at the checked-in file:
 ```sh
 export CORRAL_CONFIG="$HOME/dev/team-dotfiles/corral.sh"
 ```
+"""
+
+
+def _default_cell(setting: Setting) -> str:
+    if setting.default_doc:
+        return setting.default_doc
+    default = setting.default
+    return f"`{default}`" if isinstance(default, str) and default else "``"
+
+
+def _flag_cell(setting: Setting) -> str:
+    return f"`{setting.flag}`" if setting.flag else "—"
+
+
+def _settings_table() -> str:
+    lines = [
+        "## Settings",
+        "",
+        "| Variable | Flag | Default | Meaning |",
+        "| --- | --- | --- | --- |",
+    ]
+    for setting in SETTINGS:
+        doc = " ".join(setting.doc.split())
+        lines.append(
+            f"| `{setting.env}` | {_flag_cell(setting)} | {_default_cell(setting)} | {doc} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render() -> str:
+    parts = [
+        generated_header("md", "packages/cli/src/corral/settings.py (+ this module's prose)"),
+        _INTRO,
+        _settings_table(),
+        _SETUP,
+        _PER_REPO,
+        _TEAM,
+    ]
+    return "\n".join(part.rstrip() + "\n" for part in parts).rstrip() + "\n"

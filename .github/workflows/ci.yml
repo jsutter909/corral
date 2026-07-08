@@ -11,11 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install shellcheck, zsh, jq
-        run: sudo apt-get update && sudo apt-get install -y shellcheck zsh jq
+      - name: Install shellcheck and zsh
+        run: sudo apt-get update && sudo apt-get install -y shellcheck zsh
 
       - name: Lint
         run: make lint
 
-      - name: Smoke tests
+      - name: Generated artifacts are fresh
+        run: make check-generated
+
+      - name: Tests
         run: make test

@@ -1,17 +1,17 @@
 #compdef corral ccd
-# Completion for corral — isolated AI-agent workspaces on top of herdr.
+# GENERATED FILE — do not edit by hand.
+# Source of truth: packages/cli/src/corral/generate/zsh.py (+ the command specs)
+# Regenerate with: python -m corral.generate (or: make generate)
 #
+# Completion for corral — isolated AI-agent workspaces on top of herdr.
 # Lives at the plugin root: oh-my-zsh puts the plugin directory itself on
 # fpath before running compinit, so this file is picked up automatically.
 # Also completes ccd (from corral.plugin.zsh), which takes one workspace.
-#
-# Dev loop: after editing this file in a live shell, reload with
-#   unfunction _corral 2>/dev/null; autoload -Uz _corral
 
 # --- value helpers ----------------------------------------------------------
 
-# Agents accepted by `corral spawn --agent` (any herdr-integrated agent works;
-# these are the documented ones).
+# Agents accepted by `corral spawn --agent` — rendered from the agent
+# registry (corral.agents.AGENTS); any herdr-integrated agent also works.
 _corral_agents() {
   local -a agents=(
     'claude:Claude Code (default)'
@@ -44,8 +44,9 @@ _corral_new_branch() {
   _message 'new branch name (default: <prefix>/<repo>-<timestamp>)'
 }
 
-# Active workspaces from `corral ls --json`, offered as both ids and labels,
-# described as "label — branch (status)".
+# Active workspaces from `corral ls --tsv` (columns: workspace, label, repo,
+# branch, status, worktree), offered as both ids and labels, described as
+# "label — branch (status)".
 #
 # * One `corral ls` call per completion invocation; deliberately NOT cached
 #   via _store_cache/zcompcache — workspaces churn constantly and a stale
@@ -55,18 +56,13 @@ _corral_new_branch() {
 # * Colons in labels are escaped for _describe, which splits each pair on the
 #   first unescaped colon.
 _corral_workspaces() {
-  local json
-  json="$(command corral ls --json 2>/dev/null)" || return 1
-  [[ $json == \[* ]] || return 1
-
   local -a rows pairs parts
-  rows=( ${(f)"$(print -r -- "$json" | command jq -r \
-    '.[] | [.workspace, .label, .branch, .status] | @tsv' 2>/dev/null)"} )
+  rows=( ${(f)"$(command corral ls --tsv 2>/dev/null)"} )
 
   local row ws label branch wstatus   # NB: "status" is read-only in zsh
   for row in $rows; do
     parts=( "${(@ps:\t:)row}" )
-    ws=$parts[1] label=$parts[2] branch=$parts[3] wstatus=$parts[4]
+    ws=$parts[1] label=$parts[2] branch=$parts[4] wstatus=$parts[5]
     [[ -n $ws ]] || continue
     pairs+=( "${ws//:/\\:}:${label} — ${branch} (${wstatus})" )
     if [[ -n $label && $label != $ws ]]; then
@@ -82,17 +78,17 @@ _corral_workspaces() {
 
 _corral_commands() {
   local -a cmds=(
-    'spawn:create an isolated agent workspace in a new git worktree'
-    'close:remove an agent'\''s worktree and close its workspace'
+    'spawn:launch an isolated agent workspace in a fresh git worktree'
     'ls:list active agent workspaces'
     'list:list active agent workspaces (alias for ls)'
     'focus:switch focus to an agent workspace'
     'attach:switch focus to an agent workspace (alias for focus)'
-    'open:open your IDE (VS Code/Cursor) in a workspace'\''s worktree'
-    'ide:open your IDE in a workspace'\''s worktree (alias for open)'
-    'prune:remove finished/stale agent workspaces'
-    'clean:remove finished/stale agent workspaces (alias for prune)'
-    'doctor:check dependencies and update corral to the latest main'
+    'open:open your IDE in an agent workspace'\''s worktree'
+    'ide:open your IDE in an agent workspace'\''s worktree (alias for open)'
+    'close:remove an agent'\''s git worktree and close its workspace'
+    'prune:remove agent workspaces whose work is done'
+    'clean:remove agent workspaces whose work is done (alias for prune)'
+    'doctor:check that corral is healthy and up to date'
     'version:print the corral version'
     'help:show help (add a command name for details)'
   )
@@ -124,35 +120,34 @@ _corral() {
     args)
       local cmd=${line[1]}
       case $cmd in            # aliases share their target's completion
-        list)   cmd=ls ;;
-        attach) cmd=focus ;;
-        ide)    cmd=open ;;
-        clean)  cmd=prune ;;
+        list)    cmd=ls ;;
+        attach)  cmd=focus ;;
+        ide)     cmd=open ;;
+        clean)   cmd=prune ;;
       esac
       curcontext="${curcontext%:*:*}:corral-${cmd}:"
       case $cmd in
         spawn)
           _arguments -S \
             '(- *)'{-h,--help}'[show spawn help]' \
-            '(-a --agent)'{-a,--agent}'[agent to launch in the left pane, or "none"]:agent:_corral_agents' \
-            '(-m --model)'{-m,--model}'[model for the Claude agent (claude only)]:model:(opus sonnet haiku)' \
-            '(-P --permission-mode)'{-P,--permission-mode}'[Claude permission/edit mode (claude only)]:mode:(acceptEdits plan bypassPermissions default)' \
-            '(-p --prompt)'{-p,--prompt}'[initial prompt to hand the agent on launch]:prompt:' \
-            '(-b --base)'{-b,--base}'[base git ref to branch the worktree from]:git ref:_corral_git_refs' \
-            '(-r --ratio)'{-r,--ratio}'[agent (left) pane share of width]:ratio (0..1):' \
-            '(-l --label)'{-l,--label}'[workspace label]:label:' \
-            '--no-focus[create the workspace without switching focus to it]' \
-            '--no-setup[do not run the repo'\''s .corral/setup.sh]' \
+            '(-a --agent)'{-a,--agent}'[Agent to launch in the left pane, or "none" for a blank shell]:agent:_corral_agents' \
+            '(-m --model)'{-m,--model}'[Model for the Claude agent. claude agent only]:model:(opus sonnet haiku)' \
+            '(-P --permission-mode)'{-P,--permission-mode}'[Claude permission/edit mode, e.g. acceptEdits, plan. claude agent only]:mode:(acceptEdits plan bypassPermissions default)' \
+            '(-p --prompt)'{-p,--prompt}'[Initial prompt to hand the agent on launch]:prompt:' \
+            '(-b --base)'{-b,--base}'[Base ref to branch the worktree from]:git ref:_corral_git_refs' \
+            '(-r --ratio)'{-r,--ratio}'[Agent (left) pane share of width]:ratio (0..1):' \
+            '(-l --label)'{-l,--label}'[Workspace label]:label:' \
+            '--no-focus[Create the workspace without switching focus to it]' \
+            '--no-setup[Skip the repo'\''s .corral/setup.sh (also: CORRAL_SETUP=0)]' \
             '1:repository directory:_directories' \
             '2::new branch name:_corral_new_branch' \
             && ret=0
           ;;
-        close)
+        ls)
           _arguments -S \
-            '(- *)'{-h,--help}'[show close help]' \
-            '(-f --force)'{-f,--force}'[skip the confirmation prompt; remove even if .corral/cleanup.sh fails]' \
-            '--no-cleanup[do not run the worktree'\''s .corral/cleanup.sh]' \
-            '1::workspace:_corral_workspaces' \
+            '(- *)'{-h,--help}'[show ls help]' \
+            '(--tsv -j --json)'{-j,--json}'[Emit machine-readable JSON instead of a table]' \
+            '(--json)--tsv[Emit tab-separated rows (workspace, label, repo, branch, status, worktree)]' \
             && ret=0
           ;;
         focus)
@@ -164,33 +159,35 @@ _corral() {
         open)
           _arguments -S \
             '(- *)'{-h,--help}'[show open help]' \
-            '(-i --ide)'{-i,--ide}'[IDE to open]:ide:(vscode cursor)' \
-            '(--no-ssh)--ssh[force Remote-SSH mode (print a link for your local machine)]' \
-            '(--ssh)--no-ssh[force local mode (launch the IDE on this machine)]' \
-            '--host[ssh host used in the Remote-SSH link]:host:_hosts' \
+            '(-i --ide)'{-i,--ide}'[IDE to open: vscode or cursor]:ide:(vscode cursor)' \
+            '(--no-ssh)--ssh[Force Remote-SSH mode (print a link that opens the IDE on]' \
+            '(--ssh)--no-ssh[Force local mode (launch the IDE on this machine)]' \
+            '--host[SSH host to use in the Remote-SSH link]:host:_hosts' \
             '1::workspace:_corral_workspaces' \
             && ret=0
           ;;
-        ls)
+        close)
           _arguments -S \
-            '(- *)'{-h,--help}'[show ls help]' \
-            '(-j --json)'{-j,--json}'[emit machine-readable JSON instead of a table]' \
+            '(- *)'{-h,--help}'[show close help]' \
+            '(-f --force)'{-f,--force}'[Skip the confirmation prompt; close even if .corral/cleanup.sh fails]' \
+            '--no-cleanup[Do not run .corral/cleanup.sh (also: CORRAL_CLEANUP=0)]' \
+            '1::workspace:_corral_workspaces' \
             && ret=0
           ;;
         prune)
           _arguments -S \
             '(- *)'{-h,--help}'[show prune help]' \
-            '(-b --base)'{-b,--base}'[branch to test "merged into" against]:git ref:_corral_git_refs' \
-            '(-i --idle)'{-i,--idle}'[also prune idle workspaces with a clean tree]' \
-            '(-n --dry-run)'{-n,--dry-run}'[show what would be pruned without removing anything]' \
-            '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt; prune even if .corral/cleanup.sh fails]' \
-            '--no-cleanup[do not run the worktree'\''s .corral/cleanup.sh]' \
+            '(-b --base)'{-b,--base}'[Branch to test "merged into" against]:git ref:_corral_git_refs' \
+            '(-i --idle)'{-i,--idle}'[Also prune idle workspaces with a clean tree]' \
+            '(-n --dry-run)'{-n,--dry-run}'[Show what would be pruned without removing anything]' \
+            '(-f --force)'{-f,--force}'[Skip the per-workspace confirmation prompt; prune even if]' \
+            '--no-cleanup[Do not run .corral/cleanup.sh (also: CORRAL_CLEANUP=0)]' \
             && ret=0
           ;;
         doctor)
           _arguments -S \
             '(- *)'{-h,--help}'[show doctor help]' \
-            '--no-update[run the checks only; never touch the installation]' \
+            '--no-update[Run the checks only; never touch the installation]' \
             && ret=0
           ;;
         help)

@@ -51,31 +51,53 @@ ownership on **both** properties — linkedness *and* the path prefix
 
 ```
 packages/cli/
-├── bin/corral        # arg dispatch; resolves lib/ via symlink-aware path
-└── lib/
-    ├── common.sh     # logging, dep checks, config load, herdr/JSON helpers, guards
-    ├── spawn.sh      # cmd_spawn
-    ├── close.sh      # cmd_close
-    ├── ls.sh         # cmd_ls
-    ├── focus.sh      # cmd_focus
-    └── prune.sh      # cmd_prune
+├── bin/corral               # launcher: symlink-aware, puts src/ on sys.path
+└── src/corral/
+    ├── app.py               # dispatch, root help, error handling
+    ├── cli.py               # Command/Option/Argument spec model + parser + help
+    ├── settings.py          # the settings registry + config loading
+    ├── herdr.py             # typed client for the herdr socket API
+    ├── workspaces.py        # Workspace/Worktree model + the ownership invariant
+    ├── agents.py            # agent registry + launch-command construction
+    ├── ides.py              # IDE registry + Remote-SSH deep links
+    ├── hooks.py             # setup/cleanup hooks; remove_workspace choke point
+    ├── naming.py            # branch slugs + prompt-derived branch names
+    ├── gitutil.py           # every git call, in one place
+    ├── commands/            # one module per subcommand: SPEC + run()
+    └── generate/            # renders docs, config example, and the omz plugin
 
-packages/omz-plugin/  # zsh layer over the CLI: completion driven by
-                      # `corral ls --json`, aliases, ccd, prompt segment
+packages/omz-plugin/         # GENERATED zsh layer over the CLI: completion and
+                             # ccd/prompt driven by `corral ls --tsv`
 ```
 
-Helpers worth knowing in `common.sh`:
+### The single-source-of-truth registries
 
-- `herdr_do …` — runs a herdr command and dies on either a non-zero exit or an
-  `{"error": …}` response (herdr reports API errors with a zero exit code).
-  herdr's stderr passes straight through to the user; only stdout is captured.
-- `json_get <blob> <jq-path>` — extract a field or die if missing.
-- `worktree_path_from_info` / `agent_workspace_rows` — apply the ownership test
-  (linked worktree under `CORRAL_WORKTREES_DIR`); the basis of the safety
-  guards. `agent_workspace_rows` builds the whole listing from a single
-  `workspace list` call.
-- `resolve_workspace <id-or-label> <list-blob>` — resolve from an
-  already-fetched workspace list (returns 1 for no match, 2 for an ambiguous
-  label) so herdr failures surface in the caller, not a swallowed subshell.
-- `confirm <prompt>` — yes/no prompt that reads from `/dev/tty`, so piped stdin
-  can never auto-confirm a destructive action.
+Everything user-visible is declared once and rendered everywhere:
+
+- **Command specs** (`commands/*.py`, model in `cli.py`) — each command's
+  arguments, options, prose, and examples drive the argument parser,
+  `corral <cmd> --help`, `docs/usage.md`, and the `_corral` zsh completion.
+- **Settings** (`settings.py`) — each `Setting` declares its env var, default,
+  linked flag, and docs; the loader, the settings table in
+  `docs/configuration.md`, and `share/config.example.sh` are all derived.
+- **Agents / IDEs** (`agents.py`, `ides.py`) — feed spawn/open behavior, docs,
+  and completion candidates.
+
+`python -m corral.generate` (via `make generate`) writes the artifacts;
+`--check` (in CI and `make check`) fails when they drift.
+
+Runtime pieces worth knowing:
+
+- `Herdr.call(…)` — runs a herdr command and raises on either a non-zero exit
+  or an `{"error": …}` response (herdr reports API errors with a zero exit
+  code). herdr's stderr passes straight through to the user; only stdout is
+  captured.
+- `Workspace.is_corral_owned(…)` — the ownership test (linked worktree under
+  `CORRAL_WORKTREES_DIR`); the basis of the safety guards in `ls`, `close`,
+  and `prune`.
+- `hooks.remove_workspace(…)` — the one choke point that destroys a
+  workspace, so no removal path can skip the cleanup-before-remove invariant.
+- `resolve_workspace(ref, workspaces)` — id-first, then unique label;
+  ambiguity is an error, never a guess.
+- `ui.confirm(prompt)` — yes/no prompt that reads from `/dev/tty`, so piped
+  stdin can never auto-confirm a destructive action.
