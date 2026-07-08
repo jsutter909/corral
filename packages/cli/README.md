@@ -16,7 +16,7 @@ See the [top-level README](../../README.md) for install and usage, and
 ```
 bin/corral            # dispatcher (symlinked onto PATH as `corral`)
 lib/common.sh         # logging, dep checks, config, herdr/JSON helpers, guards
-lib/{spawn,close,ls,focus,prune}.sh
+lib/{spawn,close,ls,focus,prune,doctor}.sh
 share/config.example.sh
 test/smoke.sh         # runs without a herdr server
 ```

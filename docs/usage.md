@@ -95,6 +95,34 @@ corral prune --dry-run
 corral prune --base main --force
 ```
 
+## `corral doctor [--no-update]`
+
+Check that corral is healthy and up to date:
+
+1. **Dependencies** — verifies `herdr`, `jq`, and `git` are on `PATH` (each is
+   reported individually, with its version and location).
+2. **Environment** — reports whether the herdr server is reachable and whether
+   a config file exists. Informational only; never fails the doctor.
+3. **Update** — fast-forwards the corral installation to the latest `main`
+   from its origin remote and reports the new version.
+
+The update step refuses to touch anything that isn't a clean checkout on
+`main` — a dev checkout on a feature branch, with local changes, or with a
+diverged history is left alone with a note. A non-git install (no `.git`) gets
+a pointer to the `install.sh` one-liner instead.
+
+| Option | Meaning |
+| --- | --- |
+| `--no-update` | Run the checks only; never touch the installation. |
+
+Exits `0` when every required dependency is present and the update succeeded
+(or was safely skipped), `1` otherwise.
+
+```sh
+corral doctor
+corral doctor --no-update
+```
+
 ## Exit codes
 
 `0` success · `1` usage error or a failed herdr/git operation (the message

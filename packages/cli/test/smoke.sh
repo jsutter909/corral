@@ -26,8 +26,10 @@ check "close --help exits 0"        0 "$CORRAL" close --help
 check "ls --help exits 0"           0 "$CORRAL" ls --help
 check "focus --help exits 0"        0 "$CORRAL" focus --help
 check "prune --help exits 0"        0 "$CORRAL" prune --help
+check "doctor --help exits 0"       0 "$CORRAL" doctor --help
 check "help spawn exits 0"          0 "$CORRAL" help spawn
 check "unknown command exits 1"     1 "$CORRAL" bogus-command
+check "doctor unknown flag exits 1" 1 "$CORRAL" doctor --bogus
 check "spawn without repo exits 1"  1 "$CORRAL" spawn
 check "focus without arg exits 1"   1 "$CORRAL" focus
 
