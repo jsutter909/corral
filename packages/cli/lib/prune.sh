@@ -14,10 +14,11 @@ Usage:
   corral prune [options]
 
 Options:
-  --base <ref>   Branch to test "merged into" against
+  -b, --base <ref>
+                 Branch to test "merged into" against
                  (default: the repo's origin/HEAD, else main, else master;
                  if none of those exist the merged check is skipped entirely).
-  --idle         Also prune workspaces with a clean worktree whose agent is
+  -i, --idle     Also prune workspaces with a clean worktree whose agent is
                  idle, even if the branch is not merged (still requires a clean
                  tree; use with care).
   -n, --dry-run  Show what would be pruned without removing anything.
@@ -53,8 +54,8 @@ cmd_prune() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)   prune_usage; return 0 ;;
-      --base)      base="${2:?--base needs a value}"; shift 2 ;;
-      --idle)      idle=1; shift ;;
+      -b|--base)   base="${2:?--base needs a value}"; shift 2 ;;
+      -i|--idle)   idle=1; shift ;;
       -n|--dry-run) dry=1; shift ;;
       -f|--force)  force=1; shift ;;
       -*) die "unknown option: $1 (try 'corral prune --help')" ;;

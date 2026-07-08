@@ -32,6 +32,9 @@ check "unknown command exits 1"     1 "$CORRAL" bogus-command
 check "doctor unknown flag exits 1" 1 "$CORRAL" doctor --bogus
 check "spawn without repo exits 1"  1 "$CORRAL" spawn
 check "spawn --prompt w/o value !=0" 1 "$CORRAL" spawn . --prompt
+check "spawn -p w/o value !=0"       1 "$CORRAL" spawn . -p
+check "spawn -b w/o value !=0"       1 "$CORRAL" spawn . -b
+check "spawn unknown short flag !=0" 1 "$CORRAL" spawn . -z
 check "focus without arg exits 1"   1 "$CORRAL" focus
 
 echo "launch-string construction"

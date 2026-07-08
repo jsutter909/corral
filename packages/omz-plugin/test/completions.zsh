@@ -307,6 +307,11 @@ expect_exact 'corral spawn --agent <TAB> lists agents' \
   $WORK/stub-ok 'corral spawn --agent ' \
   claude codex copilot droid opencode cursor none
 
+# Short flags resolve to the same completion actions as their long forms.
+expect_exact 'corral spawn -a <TAB> lists agents (short flag)' \
+  $WORK/stub-ok 'corral spawn -a ' \
+  claude codex copilot droid opencode cursor none
+
 # Matches are captured in compadd's insertion form, so the label containing a
 # space arrives as 'tax:\ rounding' (colon unescaped, space backslashed).
 expect_exact 'corral close <TAB> offers workspace ids and labels' \
@@ -334,6 +339,11 @@ expect_exact 'ccd <TAB> offers workspaces' \
 expect_exact 'corral ls --<TAB> lists ls flags' \
   $WORK/stub-ok 'corral ls --' \
   --json --help
+
+# Short flags appear alongside their long forms when a bare '-' is typed.
+expect_exact 'corral ls -<TAB> lists ls flags (short + long)' \
+  $WORK/stub-ok 'corral ls -' \
+  -j --json -h --help
 
 expect_exact 'corral prune --<TAB> lists prune flags' \
   $WORK/stub-ok 'corral prune --' \

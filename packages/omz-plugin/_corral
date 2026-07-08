@@ -131,13 +131,13 @@ _corral() {
         spawn)
           _arguments -S \
             '(- *)'{-h,--help}'[show spawn help]' \
-            '--agent[agent to launch in the left pane, or "none"]:agent:_corral_agents' \
-            '--model[model for the Claude agent (claude only)]:model:(opus sonnet haiku)' \
-            '--permission-mode[Claude permission/edit mode (claude only)]:mode:(acceptEdits plan bypassPermissions default)' \
-            '--prompt[initial prompt to hand the agent on launch]:prompt:' \
-            '--base[base git ref to branch the worktree from]:git ref:_corral_git_refs' \
-            '--ratio[agent (left) pane share of width]:ratio (0..1):' \
-            '--label[workspace label]:label:' \
+            '(-a --agent)'{-a,--agent}'[agent to launch in the left pane, or "none"]:agent:_corral_agents' \
+            '(-m --model)'{-m,--model}'[model for the Claude agent (claude only)]:model:(opus sonnet haiku)' \
+            '(-P --permission-mode)'{-P,--permission-mode}'[Claude permission/edit mode (claude only)]:mode:(acceptEdits plan bypassPermissions default)' \
+            '(-p --prompt)'{-p,--prompt}'[initial prompt to hand the agent on launch]:prompt:' \
+            '(-b --base)'{-b,--base}'[base git ref to branch the worktree from]:git ref:_corral_git_refs' \
+            '(-r --ratio)'{-r,--ratio}'[agent (left) pane share of width]:ratio (0..1):' \
+            '(-l --label)'{-l,--label}'[workspace label]:label:' \
             '--no-focus[create the workspace without switching focus to it]' \
             '--no-setup[do not run the repo'\''s .corral/setup.sh]' \
             '1:repository directory:_directories' \
@@ -160,14 +160,14 @@ _corral() {
         ls)
           _arguments -S \
             '(- *)'{-h,--help}'[show ls help]' \
-            '--json[emit machine-readable JSON instead of a table]' \
+            '(-j --json)'{-j,--json}'[emit machine-readable JSON instead of a table]' \
             && ret=0
           ;;
         prune)
           _arguments -S \
             '(- *)'{-h,--help}'[show prune help]' \
-            '--base[branch to test "merged into" against]:git ref:_corral_git_refs' \
-            '--idle[also prune idle workspaces with a clean tree]' \
+            '(-b --base)'{-b,--base}'[branch to test "merged into" against]:git ref:_corral_git_refs' \
+            '(-i --idle)'{-i,--idle}'[also prune idle workspaces with a clean tree]' \
             '(-n --dry-run)'{-n,--dry-run}'[show what would be pruned without removing anything]' \
             '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt]' \
             && ret=0
