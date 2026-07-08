@@ -297,7 +297,7 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  spawn close ls list focus attach prune clean version help
+  spawn close ls list focus attach prune clean doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
@@ -339,9 +339,13 @@ expect_exact 'corral prune --<TAB> lists prune flags' \
   $WORK/stub-ok 'corral prune --' \
   --base --idle --dry-run --force --help
 
+expect_exact 'corral doctor --<TAB> lists doctor flags' \
+  $WORK/stub-ok 'corral doctor --' \
+  --no-update --help
+
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  spawn close ls list focus attach prune clean version help
+  spawn close ls list focus attach prune clean doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -349,7 +353,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  spawn close ls list focus attach prune clean version help
+  spawn close ls list focus attach prune clean doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 
@@ -372,8 +376,8 @@ expect_output 'corral_prompt_info shows the workspace count' \
   'seg=🐎 2.'
 
 expect_output 'aliases are defined' \
-  $WORK/stub-ok 'print -r -- "a=${aliases[csp]}|${aliases[cls]}|${aliases[ccl]}|${aliases[cfo]}|${aliases[cpr]}"' \
-  'a=corral spawn|corral ls|corral close|corral focus|corral prune'
+  $WORK/stub-ok 'print -r -- "a=${aliases[csp]}|${aliases[cls]}|${aliases[ccl]}|${aliases[cfo]}|${aliases[cpr]}|${aliases[cdoc]}"' \
+  'a=corral spawn|corral ls|corral close|corral focus|corral prune|corral doctor'
 
 expect_output 'ccd fails cleanly when corral fails' \
   $WORK/stub-fail 'ccd; print -r -- "rc:$?:"' \

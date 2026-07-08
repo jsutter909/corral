@@ -33,7 +33,8 @@ fi
       cls 'corral ls' \
       ccl 'corral close' \
       cfo 'corral focus' \
-      cpr 'corral prune'; do
+      cpr 'corral prune' \
+      cdoc 'corral doctor'; do
     (( $+commands[$name] || $+aliases[$name] || $+functions[$name] )) \
       || alias "$name"="$target"
   done

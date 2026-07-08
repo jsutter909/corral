@@ -90,6 +90,7 @@ _corral_commands() {
     'attach:switch focus to an agent workspace (alias for focus)'
     'prune:remove finished/stale agent workspaces'
     'clean:remove finished/stale agent workspaces (alias for prune)'
+    'doctor:check dependencies and update corral to the latest main'
     'version:print the corral version'
     'help:show help (add a command name for details)'
   )
@@ -167,6 +168,12 @@ _corral() {
             '--idle[also prune idle workspaces with a clean tree]' \
             '(-n --dry-run)'{-n,--dry-run}'[show what would be pruned without removing anything]' \
             '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt]' \
+            && ret=0
+          ;;
+        doctor)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show doctor help]' \
+            '--no-update[run the checks only; never touch the installation]' \
             && ret=0
           ;;
         help)

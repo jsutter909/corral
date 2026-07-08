@@ -35,6 +35,7 @@ Commands:
   focus <workspace>       Switch focus to an agent workspace (alias: attach)
   close [workspace]       Remove an agent's worktree and close its workspace
   prune                   Remove finished/stale agent workspaces (merged + clean)
+  doctor                  Check dependencies and update corral to the latest main
   help [command]          Show help (add a command name for details)
   version                 Print the corral version
 
@@ -65,6 +66,9 @@ main() {
     prune|clean)
       # shellcheck source=../lib/prune.sh
       . "$CORRAL_LIB_DIR/prune.sh"; cmd_prune "$@" ;;
+    doctor)
+      # shellcheck source=../lib/doctor.sh
+      . "$CORRAL_LIB_DIR/doctor.sh"; cmd_doctor "$@" ;;
     version|--version|-V) printf 'corral %s\n' "$CORRAL_VERSION" ;;
     help|--help|-h)
       if [ $# -gt 0 ]; then

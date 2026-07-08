@@ -10,7 +10,7 @@ optional prompt segment showing how many agents you're herding.
 values:
 
 ```text
-corral <TAB>                 # spawn / close / ls / focus / prune / …
+corral <TAB>                 # spawn / close / ls / focus / prune / doctor / …
 corral spawn --<TAB>         # --agent --base --ratio --label --no-focus
 corral spawn --agent <TAB>   # claude codex copilot droid opencode cursor none
 corral spawn --base <TAB>    # branches of the repo you're in
@@ -31,6 +31,7 @@ nothing.
 | `ccl` | `corral close` |
 | `cfo` | `corral focus` |
 | `cpr` | `corral prune` |
+| `cdoc` | `corral doctor` |
 
 **`ccd [workspace]`** — cd into an agent's worktree by id or label (with tab
 completion). This is a shell function, so it moves *your current shell* —

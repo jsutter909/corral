@@ -59,6 +59,7 @@ corral ls                                   # see what's running
 corral focus checkout                        # jump to an agent by label or id
 corral close                                 # tear down the workspace you're in
 corral prune                                 # remove merged + clean agent workspaces
+corral doctor                                # check deps + update to the latest main
 ```
 
 ## Commands
@@ -70,6 +71,7 @@ corral prune                                 # remove merged + clean agent works
 | `corral focus <workspace>` | Switch focus to an agent by id or label (alias: `attach`). |
 | `corral close [workspace]` | Remove an agent's worktree and close its workspace. |
 | `corral prune` | Remove agent workspaces that are merged **and** have a clean tree. |
+| `corral doctor` | Check dependencies and update corral to the latest `main`. |
 | `corral help [command]` | Help, optionally for a specific command. |
 
 Every command has `--help`. Full reference: [`docs/usage.md`](docs/usage.md).
