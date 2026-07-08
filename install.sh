@@ -2,19 +2,19 @@
 # install.sh — install corral.
 #
 # Remote (from anywhere):
-#   curl -fsSL https://raw.githubusercontent.com/YOURNAME/corral/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/jsutter909/corral/main/install.sh | bash
 #
 # Local (from a checkout):
 #   ./install.sh
 #
 # Environment overrides:
-#   CORRAL_REPO   git URL to clone           (default: https://github.com/YOURNAME/corral.git)
+#   CORRAL_REPO   git URL to clone           (default: https://github.com/jsutter909/corral.git)
 #   CORRAL_REF    branch/tag to install      (default: main)
 #   CORRAL_HOME   where corral lives         (default: ~/.local/share/corral)
 #   CORRAL_BIN    dir to symlink `corral`    (default: ~/.local/bin)
 set -euo pipefail
 
-REPO="${CORRAL_REPO:-https://github.com/YOURNAME/corral.git}"
+REPO="${CORRAL_REPO:-https://github.com/jsutter909/corral.git}"
 REF="${CORRAL_REF:-main}"
 HOME_DIR="${CORRAL_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/corral}"
 BIN_DIR="${CORRAL_BIN:-$HOME/.local/bin}"

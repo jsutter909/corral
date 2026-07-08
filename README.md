@@ -18,11 +18,6 @@ Run several at once — each agent gets its own branch, its own files, and its o
 window. Nothing steps on anything else. When an agent's done, one command tears
 the whole thing down.
 
-> **Before you publish:** this repo uses `YOURNAME` as a placeholder for your
-> GitHub owner. Replace it everywhere with:
-> `git grep -l YOURNAME | xargs sed -i '' 's/YOURNAME/your-gh-user/g'` (macOS)
-> or `... sed -i 's/YOURNAME/your-gh-user/g'` (Linux).
-
 ## Requirements
 
 - [`herdr`](https://herdr.dev) — the terminal workspace manager corral drives
@@ -34,7 +29,7 @@ corral is pure Bash, so there's nothing to compile.
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/YOURNAME/corral/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jsutter909/corral/main/install.sh | bash
 ```
 
 This clones corral to `~/.local/share/corral` and symlinks `corral` into
@@ -45,7 +40,7 @@ line (or `git -C ~/.local/share/corral pull`).
 <summary>Install from a clone instead</summary>
 
 ```sh
-git clone https://github.com/YOURNAME/corral.git
+git clone https://github.com/jsutter909/corral.git
 cd corral
 make install      # or: make link  (symlink the working tree for development)
 ```

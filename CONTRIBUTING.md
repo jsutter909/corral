@@ -5,7 +5,7 @@ Thanks for helping out! corral is small and Bash-only — easy to hack on.
 ## Setup
 
 ```sh
-git clone https://github.com/YOURNAME/corral.git
+git clone https://github.com/jsutter909/corral.git
 cd corral
 make link     # symlink the working tree's `corral` onto your PATH
 ```

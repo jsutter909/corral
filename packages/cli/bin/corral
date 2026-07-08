@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # corral — spawn and manage isolated AI-agent workspaces on top of herdr.
-# https://github.com/YOURNAME/corral
+# https://github.com/jsutter909/corral
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ Commands:
 Run 'corral <command> --help' for command-specific options.
 
 Config: ${CORRAL_CONFIG}
-Docs:   https://github.com/YOURNAME/corral
+Docs:   https://github.com/jsutter909/corral
 EOF
 }
 
