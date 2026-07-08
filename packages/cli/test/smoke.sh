@@ -31,6 +31,7 @@ check "help spawn exits 0"          0 "$CORRAL" help spawn
 check "unknown command exits 1"     1 "$CORRAL" bogus-command
 check "doctor unknown flag exits 1" 1 "$CORRAL" doctor --bogus
 check "spawn without repo exits 1"  1 "$CORRAL" spawn
+check "spawn --prompt w/o value !=0" 1 "$CORRAL" spawn . --prompt
 check "focus without arg exits 1"   1 "$CORRAL" focus
 
 echo "----"

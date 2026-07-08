@@ -29,6 +29,8 @@ Options:
   --permission-mode <mode>
                     Claude permission/edit mode, e.g. acceptEdits, plan
                     (default: ${CORRAL_PERMISSION_MODE:-Claude default}). claude agent only.
+  --prompt <text>   Initial prompt to hand the agent on launch. Passed as the
+                    agent's first positional argument (ignored for --agent none).
   --base <ref>      Base ref to branch the worktree from (default: current HEAD)
   --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
   --label <text>    Workspace label (default: derived from the branch name)
@@ -38,6 +40,7 @@ Examples:
   corral spawn ~/dev/app
   corral spawn ~/dev/app feature/checkout
   corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
+  corral spawn ~/dev/app --prompt "fix the failing tax tests"
 EOF
 }
 
@@ -55,6 +58,7 @@ cmd_spawn() {
   local repo_arg="" branch="" base="$CORRAL_BASE" ratio="$CORRAL_RATIO"
   local agent="$CORRAL_AGENT" label="" focus=1
   local model="$CORRAL_MODEL" permission_mode="$CORRAL_PERMISSION_MODE"
+  local prompt=""
 
   # First non-flag positional is the repo, second is the branch.
   local positional=()
@@ -64,6 +68,7 @@ cmd_spawn() {
       --agent)   agent="${2:?--agent needs a value}"; shift 2 ;;
       --model)   model="${2:?--model needs a value}"; shift 2 ;;
       --permission-mode) permission_mode="${2:?--permission-mode needs a value}"; shift 2 ;;
+      --prompt)  prompt="${2?--prompt needs a value}"; shift 2 ;;
       --base)    base="${2:?--base needs a value}"; shift 2 ;;
       --ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
       --label)   label="${2:?--label needs a value}"; shift 2 ;;
@@ -131,7 +136,12 @@ cmd_spawn() {
     elif [ -n "$model" ] || [ -n "$permission_mode" ]; then
       warn "--model/--permission-mode only apply to the claude agent; ignoring for '$agent'"
     fi
+    # A --prompt becomes the agent's first positional argument. Quote it so
+    # spaces and shell metacharacters survive herdr running the command string.
+    [ -n "$prompt" ] && launch="$launch $(shell_quote "$prompt")"
     herdr_do pane run "$left" "$launch" >/dev/null
+  elif [ -n "$prompt" ]; then
+    warn "--prompt has no effect with --agent none; ignoring"
   fi
 
   # 5) Focus the new workspace (lands on the left/agent pane).
@@ -150,6 +160,7 @@ cmd_spawn() {
     [ -n "$model" ]           && printf '    model    %s\n' "$model"           >&2
     [ -n "$permission_mode" ] && printf '    mode     %s\n' "$permission_mode" >&2
   fi
+  [ -n "$prompt" ] && [ "$agent" != "none" ] && printf '    prompt   %s\n' "$prompt" >&2
   printf '    panes    agent=%s  term-top=%s  term-bottom=%s\n' "$left" "$rtop" "$rbot" >&2
   printf '\n  Tear down when finished:  %scorral close %s%s\n' "$_c_dim" "$ws" "$_c_rst" >&2
 }

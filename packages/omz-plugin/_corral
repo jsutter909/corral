@@ -134,6 +134,7 @@ _corral() {
             '--agent[agent to launch in the left pane, or "none"]:agent:_corral_agents' \
             '--model[model for the Claude agent (claude only)]:model:(opus sonnet haiku)' \
             '--permission-mode[Claude permission/edit mode (claude only)]:mode:(acceptEdits plan bypassPermissions default)' \
+            '--prompt[initial prompt to hand the agent on launch]:prompt:' \
             '--base[base git ref to branch the worktree from]:git ref:_corral_git_refs' \
             '--ratio[agent (left) pane share of width]:ratio (0..1):' \
             '--label[workspace label]:label:' \

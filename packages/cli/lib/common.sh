@@ -126,6 +126,14 @@ json_get() {
   printf '%s' "$val"
 }
 
+# Single-quote a string for safe reuse in a shell command line. herdr runs the
+# `pane run` command string through a shell, so any value we splice in (e.g. a
+# free-form --prompt) must be quoted or spaces/metacharacters would break it.
+# Wraps in single quotes and escapes embedded single quotes the POSIX way.
+shell_quote() {
+  printf "'%s'" "${1//\'/\'\\\'\'}"
+}
+
 # The workspace id of the pane invoking corral (empty if not inside herdr).
 # Always returns 0 so callers can test the output rather than the status.
 current_workspace() {

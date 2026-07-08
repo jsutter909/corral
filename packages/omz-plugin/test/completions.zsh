@@ -301,7 +301,7 @@ expect_exact 'corral <TAB> lists all subcommands and aliases' \
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
-  --agent --model --permission-mode --base --ratio --label --no-focus --help
+  --agent --model --permission-mode --prompt --base --ratio --label --no-focus --help
 
 expect_exact 'corral spawn --agent <TAB> lists agents' \
   $WORK/stub-ok 'corral spawn --agent ' \
