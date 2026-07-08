@@ -18,7 +18,10 @@ Layout (one herdr workspace per agent):
 Arguments:
   <repo>            Path inside the git repo to branch from (e.g. ~/dev/app or .)
   [branch]          Branch name for the worktree
-                    (default: <prefix>/<repo>-<timestamp>)
+                    (default: with --prompt, <prefix>/<name> where <name> is
+                    generated from the prompt by the claude CLI, slugged
+                    prompt text as fallback; otherwise
+                    <prefix>/<repo>-<timestamp>)
 
 Options:
   -a, --agent <name>    Agent to launch in the left pane, or "none" for a blank shell
@@ -31,6 +34,8 @@ Options:
                     (default: ${CORRAL_PERMISSION_MODE:-Claude default}). claude agent only.
   -p, --prompt <text>   Initial prompt to hand the agent on launch. Passed as the
                     agent's first positional argument (ignored for --agent none).
+                    When [branch] is omitted, the branch is named after the
+                    prompt too.
   -b, --base <ref>      Base ref to branch the worktree from (default: current HEAD)
   -r, --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
   -l, --label <text>    Workspace label (default: derived from the branch name)
@@ -45,6 +50,7 @@ Examples:
   corral spawn ~/dev/app feature/checkout
   corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
   corral spawn ~/dev/app --prompt "fix the failing tax tests"
+                                        # branch: e.g. agent/fix-failing-tax-tests
 EOF
 }
 
@@ -56,6 +62,37 @@ _spawn_cleanup() {
     warn "spawn failed — removing partially created workspace ${_spawn_partial_ws}"
     herdr worktree remove --workspace "$_spawn_partial_ws" --force >/dev/null 2>&1 || true
   fi
+}
+
+# Turn free-form text into a git-branch-safe slug: lowercase, runs of anything
+# outside [a-z0-9] collapse to single hyphens, capped at 40 chars so branch
+# names stay readable. Prints nothing when no usable characters remain.
+# Usage: spawn_branch_slug <text>
+spawn_branch_slug() {
+  printf '%s\n' "$1" \
+    | tr '[:upper:]' '[:lower:]' \
+    | tr -cs 'a-z0-9' '-' \
+    | cut -c1-40 \
+    | sed 's/^-*//; s/-*$//'
+}
+
+# Name a branch after the task: ask the claude CLI (print mode, haiku for
+# speed) to summarize the prompt into a branch name. Whatever comes back is
+# passed through spawn_branch_slug, so a chatty or malformed reply can never
+# produce an invalid ref. Falls back to slugging the prompt text directly when
+# claude is unavailable or errors. Prints nothing only if both paths yield
+# nothing (the caller then uses the timestamp scheme).
+# Usage: spawn_branch_from_prompt <prompt>
+spawn_branch_from_prompt() {
+  local prompt="$1" reply="" slug=""
+  if command -v claude >/dev/null 2>&1; then
+    reply="$(claude -p --model haiku \
+      "Suggest a short kebab-case git branch name (2-5 words, lowercase letters, digits and hyphens only, no prefix like feature/) for this task: ${prompt}
+Reply with the branch name only." 2>/dev/null | head -n1)" || reply=""
+    slug="$(spawn_branch_slug "$reply")"
+  fi
+  [ -n "$slug" ] || slug="$(spawn_branch_slug "$prompt")"
+  printf '%s' "$slug"
 }
 
 # Compose the command string for the agent pane: the repo's setup script
@@ -128,10 +165,28 @@ cmd_spawn() {
     || die "'$repo_arg' is not inside a git repository"
   local name; name="$(basename "$repo")"
 
-  # Default branch: timestamp + pid so parallel spawns in the same second
-  # still get distinct names.
+  # Default branch: named after the task when a prompt was given (an LLM
+  # summarizes the prompt; see spawn_branch_from_prompt), otherwise
+  # timestamp + pid so parallel spawns in the same second still get distinct
+  # names. Prompt-derived names get a numeric suffix if the branch exists.
   if [ -z "$branch" ]; then
-    branch="${CORRAL_BRANCH_PREFIX}/${name}-$(date +%Y%m%d-%H%M%S)-$$"
+    local slug=""
+    if [ -n "$prompt" ]; then
+      info "naming the branch from the prompt…"
+      slug="$(spawn_branch_from_prompt "$prompt")"
+    fi
+    if [ -n "$slug" ]; then
+      branch="${CORRAL_BRANCH_PREFIX}/${slug}"
+      if git -C "$repo" show-ref --verify --quiet "refs/heads/$branch"; then
+        local n=2
+        while git -C "$repo" show-ref --verify --quiet "refs/heads/${branch}-${n}"; do
+          n=$((n + 1))
+        done
+        branch="${branch}-${n}"
+      fi
+    else
+      branch="${CORRAL_BRANCH_PREFIX}/${name}-$(date +%Y%m%d-%H%M%S)-$$"
+    fi
   fi
   [ -n "$label" ] || label="$(basename "$branch")"
 

@@ -62,6 +62,55 @@ expect "setup + prompt"           "bash .corral/setup.sh && claude 'fix the test
 expect "prompt quote escaping"    "claude 'it'\\''s broken'"        claude '' '' "it's broken" 0
 expect "prompt dropped for none"  'bash .corral/setup.sh'           none   '' '' 'fix the tests' 1
 
+echo "branch naming from prompt"
+slug() { bash -c '. "$1/common.sh"; . "$1/spawn.sh"; spawn_branch_slug "$2"' _ "$lib" "$1"; }
+expect_slug() { # expect_slug <description> <want> <text>
+  local desc="$1" want="$2" got
+  got="$(slug "$3")"
+  if [ "$got" = "$want" ]; then
+    printf '  ok   %s\n' "$desc"; pass=$((pass + 1))
+  else
+    printf '  FAIL %s (got "%s", wanted "%s")\n' "$desc" "$got" "$want"; fail=$((fail + 1))
+  fi
+}
+expect_slug "slug lowercases + hyphenates" 'fix-the-tax-tests'  'Fix the TAX tests!'
+expect_slug "slug collapses separators"    'a-b-c'              '  a -- b // c  '
+expect_slug "slug caps length at 40" \
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+expect_slug "slug of symbols is empty"     ''                   '!!! ???'
+
+# spawn_branch_from_prompt with a stubbed `claude` on PATH: reply is used when
+# it succeeds, sanitized when chatty, and the prompt slug is the fallback when
+# the CLI fails or is absent.
+stub="$(mktemp -d)"
+name_from() { # name_from <stub-body|-> <prompt>   ("-" = no claude on PATH)
+  local body="$1" prompt="$2" path="$stub:/usr/bin:/bin"
+  if [ "$body" = "-" ]; then
+    rm -f "$stub/claude"   # restricted PATH below hides any real claude too
+  else
+    printf '%s\n' "$body" >"$stub/claude"; chmod +x "$stub/claude"
+  fi
+  PATH="$path" bash -c '. "$1/common.sh"; . "$1/spawn.sh"; spawn_branch_from_prompt "$2"' _ "$lib" "$prompt"
+}
+expect_name() { # expect_name <description> <want> <stub-body|-> <prompt>
+  local desc="$1" want="$2" got
+  got="$(name_from "$3" "$4")"
+  if [ "$got" = "$want" ]; then
+    printf '  ok   %s\n' "$desc"; pass=$((pass + 1))
+  else
+    printf '  FAIL %s (got "%s", wanted "%s")\n' "$desc" "$got" "$want"; fail=$((fail + 1))
+  fi
+}
+expect_name "llm reply names the branch"  'fix-tax-rounding' '#!/bin/sh
+echo fix-tax-rounding'                                       'fix the tax tests'
+expect_name "chatty reply is sanitized"   'sure-fix-tax'     '#!/bin/sh
+echo "Sure! fix/tax"'                                        'fix the tax tests'
+expect_name "failing claude falls back"   'fix-the-tax-tests' '#!/bin/sh
+exit 1'                                                      'fix the tax tests'
+expect_name "no claude falls back"        'fix-the-tax-tests' - 'fix the tax tests'
+rm -rf "$stub"
+
 echo "----"
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
