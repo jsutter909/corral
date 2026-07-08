@@ -32,7 +32,11 @@ cmd_focus() {
   require_deps herdr jq
   require_herdr_server
 
-  local ws; ws="$(resolve_workspace "$ref")" || die "no workspace matching '$ref'"
+  local list ws rc=0
+  list="$(herdr_do workspace list)"
+  ws="$(resolve_workspace "$ref" "$list")" || rc=$?
+  [ "$rc" -ne 2 ] || die "'$ref' matches multiple workspaces; use the workspace id"
+  [ -n "$ws" ] || die "no workspace matching '$ref'"
   herdr_do workspace focus "$ws" >/dev/null
   ok "focused workspace $ws"
 }

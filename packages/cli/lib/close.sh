@@ -41,24 +41,29 @@ cmd_close() {
 
   local ws
   if [ -n "$ref" ]; then
-    ws="$(resolve_workspace "$ref")" || die "no workspace matching '$ref'"
+    local list rc=0
+    list="$(herdr_do workspace list)"
+    ws="$(resolve_workspace "$ref" "$list")" || rc=$?
+    [ "$rc" -ne 2 ] || die "'$ref' matches multiple workspaces; use the workspace id"
+    [ -n "$ws" ] || die "no workspace matching '$ref'"
   else
     ws="$(current_workspace)"
     [ -n "$ws" ] || die "could not determine current workspace; pass one (e.g. corral close w4)"
   fi
 
-  local label wt
-  label="$(herdr_do workspace get "$ws" | jq -r '.result.workspace.label // "?"')"
-  wt="$(workspace_worktree_path "$ws")"
+  local wsinfo label wt
+  wsinfo="$(herdr_do workspace get "$ws")"
+  label="$(printf '%s' "$wsinfo" | jq -r '.result.workspace.label // "?"')"
+  wt="$(worktree_path_from_info "$wsinfo")"
 
-  # Guard: only worktree-backed workspaces are corral/agent workspaces.
-  [ -n "$wt" ] || die "workspace $ws ($label) is not a worktree/agent workspace — refusing to close it"
+  # Guard: only corral-owned worktree workspaces may be destroyed.
+  [ -n "$wt" ] || die "workspace $ws ($label) is not a corral-managed worktree workspace — refusing to close it"
 
   if [ "$force" -ne 1 ]; then
-    printf 'Remove worktree and close workspace %s%s%s (%s)?\n  %s\n[y/N] ' \
-      "$_c_bold" "$ws" "$_c_rst" "$label" "$wt" >&2
-    local ans; read -r ans
-    case "$ans" in y|Y|yes|YES) ;; *) info "aborted"; return 0 ;; esac
+    local prompt
+    prompt="$(printf 'Remove worktree and close workspace %s%s%s (%s)?\n  %s\n[y/N] ' \
+      "$_c_bold" "$ws" "$_c_rst" "$label" "$wt")"
+    confirm "$prompt" || { info "aborted"; return 0; }
   fi
 
   herdr_do worktree remove --workspace "$ws" --force >/dev/null

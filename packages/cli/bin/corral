@@ -2,6 +2,9 @@
 # corral — spawn and manage isolated AI-agent workspaces on top of herdr.
 # https://github.com/jsutter909/corral
 set -euo pipefail
+# Propagate errexit into $(...) substitutions where supported (bash 4.4+), so
+# a helper dying inside one can't be silently swallowed.
+shopt -s inherit_errexit 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Locate our lib/ directory, following symlinks (installed as ~/.local/bin/corral).

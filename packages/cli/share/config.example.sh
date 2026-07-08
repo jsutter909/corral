@@ -22,5 +22,9 @@ CORRAL_BRANCH_PREFIX=agent
 # e.g. CORRAL_BASE=main
 CORRAL_BASE=
 
+# Where herdr checks out corral's worktrees. Corral only ever destroys
+# worktrees under this directory (rarely needs changing).
+# CORRAL_WORKTREES_DIR="$HOME/.herdr/worktrees"
+
 # Where this config lives (rarely needs changing).
 # CORRAL_CONFIG="$HOME/.config/corral/config.sh"

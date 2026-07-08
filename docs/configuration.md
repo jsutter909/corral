@@ -7,10 +7,10 @@ corral resolves each setting in this order (later wins):
 3. **`CORRAL_*` environment variables**
 4. **Command-line flags**
 
-> The config file is sourced as plain Bash. Because env vars set *before* corral
-> runs are seeded first and the config file is sourced after, values you write in
-> `config.sh` take effect as your team/personal defaults, while a one-off
-> `CORRAL_RATIO=0.5 corral spawn …` or a `--ratio` flag overrides them per run.
+> The config file is sourced as plain Bash, but corral snapshots your `CORRAL_*`
+> environment first and re-applies it after — so values in `config.sh` act as
+> your team/personal defaults, while a one-off `CORRAL_RATIO=0.5 corral spawn …`
+> or a `--ratio` flag overrides them per run.
 
 ## Settings
 
@@ -20,6 +20,7 @@ corral resolves each setting in this order (later wins):
 | `CORRAL_RATIO` | `--ratio` | `0.6` | Agent (left) pane width share, `0..1`. |
 | `CORRAL_BRANCH_PREFIX` | — | `agent` | Prefix for auto branch names: `<prefix>/<repo>-<timestamp>`. |
 | `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |
+| `CORRAL_WORKTREES_DIR` | — | `~/.herdr/worktrees` | Where herdr checks out corral's worktrees; corral only ever destroys worktrees under this directory. |
 | `CORRAL_CONFIG` | — | `~/.config/corral/config.sh` | Path to the config file itself. |
 
 ## Setting it up

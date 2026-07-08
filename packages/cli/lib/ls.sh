@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# ls.sh — list active agent (worktree-backed) workspaces.
+# ls.sh — list active agent (corral-owned worktree) workspaces.
 
 ls_usage() {
   cat <<'EOF'
@@ -11,30 +11,10 @@ Usage:
 Options:
   --json   Emit machine-readable JSON instead of a table.
 
-Shows every worktree-backed workspace: its id, label, git branch, agent status,
-and worktree path.
+Shows every corral-owned workspace: its id, label, git branch, agent status,
+and worktree path. Table rows go to stdout (the header goes to stderr), so
+both `corral ls | grep …` and --json are scriptable.
 EOF
-}
-
-# Emit one JSON object per agent workspace to stdout.
-_ls_collect() {
-  local list; list="$(herdr_do workspace list)"
-  local ids; ids="$(printf '%s' "$list" | jq -r '.result.workspaces[].workspace_id')"
-  local ws
-  for ws in $ids; do
-    local info wt
-    info="$(herdr_do workspace get "$ws")"
-    wt="$(worktree_path_from_info "$info")"
-    [ -n "$wt" ] || continue   # skip command/control + primary-checkout workspaces
-    local label status repo branch
-    label="$(printf '%s'  "$info" | jq -r '.result.workspace.label // "?"')"
-    status="$(printf '%s' "$info" | jq -r '.result.workspace.agent_status // "unknown"')"
-    repo="$(printf '%s'   "$info" | jq -r '.result.workspace.worktree.repo_name // "?"')"
-    branch="$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")"
-    jq -n --arg ws "$ws" --arg label "$label" --arg branch "$branch" \
-          --arg status "$status" --arg repo "$repo" --arg wt "$wt" \
-      '{workspace:$ws, label:$label, repo:$repo, branch:$branch, status:$status, worktree:$wt}'
-  done
 }
 
 cmd_ls() {
@@ -51,26 +31,36 @@ cmd_ls() {
   require_deps herdr jq git
   require_herdr_server
 
-  local rows; rows="$(_ls_collect)"
-
-  if [ "$as_json" -eq 1 ]; then
-    printf '%s' "$rows" | jq -s '.'
-    return 0
-  fi
+  local rows
+  rows="$(agent_workspace_rows)" || die "could not list agent workspaces"
 
   if [ -z "$rows" ]; then
-    info "no active agent workspaces (spawn one with 'corral spawn <repo>')"
+    if [ "$as_json" -eq 1 ]; then printf '[]\n'; else
+      info "no active agent workspaces (spawn one with 'corral spawn <repo>')"
+    fi
     return 0
   fi
 
-  # Aligned table. Header to stderr so stdout stays parseable if piped.
-  {
-    printf '%s%-10s %-20s %-30s %-9s %s%s\n' "$_c_bold" \
-      "WORKSPACE" "LABEL" "BRANCH" "STATUS" "WORKTREE" "$_c_rst"
-    printf '%s' "$rows" | jq -r \
-      '"\(.workspace)\t\(.label)\t\(.branch)\t\(.status)\t\(.worktree)"' \
-    | while IFS=$'\t' read -r ws label branch status wt; do
-        printf '%-10s %-20s %-30s %-9s %s\n' "$ws" "$label" "$branch" "$status" "$wt"
-      done
-  } >&2
+  # Append each worktree's git branch to the rows.
+  local full="" ws label status repo wt branch
+  while IFS=$'\t' read -r ws label status repo wt; do
+    [ -n "$ws" ] || continue
+    branch="$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '?')"
+    full="${full}${ws}"$'\t'"${label}"$'\t'"${repo}"$'\t'"${branch}"$'\t'"${status}"$'\t'"${wt}"$'\n'
+  done <<<"$rows"
+
+  if [ "$as_json" -eq 1 ]; then
+    printf '%s' "$full" | jq -R -s '
+      split("\n") | map(select(length > 0) | split("\t")
+        | {workspace: .[0], label: .[1], repo: .[2],
+           branch: .[3], status: .[4], worktree: .[5]})'
+    return 0
+  fi
+
+  # Header on stderr so piped stdout carries only data rows.
+  printf '%s%-10s %-20s %-30s %-9s %s%s\n' "$_c_bold" \
+    "WORKSPACE" "LABEL" "BRANCH" "STATUS" "WORKTREE" "$_c_rst" >&2
+  printf '%s' "$full" | while IFS=$'\t' read -r ws label repo branch status wt; do
+    printf '%-10s %-20s %-30s %-9s %s\n' "$ws" "$label" "$branch" "$status" "$wt"
+  done
 }

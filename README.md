@@ -76,10 +76,11 @@ Every command has `--help`. Full reference: [`docs/usage.md`](docs/usage.md).
 
 ### Safety
 
-corral only ever touches **linked** git worktrees (the ones it creates under
-`~/.herdr/worktrees/…`). It will **refuse** to `close` or `prune` your primary
-repo checkout, and `prune` never removes a workspace with uncommitted changes or
-an unmerged branch.
+corral only ever touches worktrees it created: **linked** git worktrees under
+`~/.herdr/worktrees/…`. It will **refuse** to `close` or `prune` your primary
+repo checkout or a worktree you made by hand. `prune` never removes a workspace
+with uncommitted changes, and only considers unmerged branches when you
+explicitly pass `--idle`.
 
 ## Configuration
 

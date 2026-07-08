@@ -34,14 +34,18 @@ agent 60% and the two terminals 40%.
 
 ## The isolation guarantee
 
-Each spawn produces a **linked** git worktree (`is_linked_worktree: true`) on its
-own branch. That's the property corral keys on to tell *its* workspaces apart
-from your everyday ones:
+Each spawn produces a **linked** git worktree (`is_linked_worktree: true`)
+checked out by herdr under `~/.herdr/worktrees/` on its own branch. Corral keys
+ownership on **both** properties — linkedness *and* the path prefix
+(`CORRAL_WORKTREES_DIR`):
 
-- `ls` shows only linked worktrees.
-- `close` and `prune` refuse anything that isn't a linked worktree — so your
-  primary repo checkout (`is_linked_worktree: false`) can never be removed.
-- `prune` additionally requires a clean tree and a merged branch before deleting.
+- `ls` shows only corral-owned worktrees.
+- `close` and `prune` refuse anything else — your primary repo checkout
+  (`is_linked_worktree: false`) and any linked worktree you made by hand
+  (outside `~/.herdr/worktrees/`) can never be removed.
+- `prune` additionally requires a clean tree and a merged branch before
+  deleting; if no base branch can be resolved, the merged check is skipped
+  entirely rather than guessed.
 
 ## Code map
 
@@ -61,7 +65,14 @@ Helpers worth knowing in `common.sh`:
 
 - `herdr_do …` — runs a herdr command and dies on either a non-zero exit or an
   `{"error": …}` response (herdr reports API errors with a zero exit code).
+  herdr's stderr passes straight through to the user; only stdout is captured.
 - `json_get <blob> <jq-path>` — extract a field or die if missing.
-- `worktree_path_from_info` / `workspace_worktree_path` — return a checkout path
-  **only** for linked worktrees; the basis of the safety guards.
-- `resolve_workspace <id-or-label>` — accept either an id or a unique label.
+- `worktree_path_from_info` / `agent_workspace_rows` — apply the ownership test
+  (linked worktree under `CORRAL_WORKTREES_DIR`); the basis of the safety
+  guards. `agent_workspace_rows` builds the whole listing from a single
+  `workspace list` call.
+- `resolve_workspace <id-or-label> <list-blob>` — resolve from an
+  already-fetched workspace list (returns 1 for no match, 2 for an ambiguous
+  label) so herdr failures surface in the caller, not a swallowed subshell.
+- `confirm <prompt>` — yes/no prompt that reads from `/dev/tty`, so piped stdin
+  can never auto-confirm a destructive action.

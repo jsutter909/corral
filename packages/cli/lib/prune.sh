@@ -15,7 +15,8 @@ Usage:
 
 Options:
   --base <ref>   Branch to test "merged into" against
-                 (default: the repo's origin/HEAD, else main, else master).
+                 (default: the repo's origin/HEAD, else main, else master;
+                 if none of those exist the merged check is skipped entirely).
   --idle         Also prune workspaces with a clean worktree whose agent is
                  idle, even if the branch is not merged (still requires a clean
                  tree; use with care).
@@ -29,17 +30,22 @@ EOF
 }
 
 # Print the base branch ref to test merges against for a given worktree.
+# Returns 1 when no base can be resolved — the caller MUST then skip the
+# merged check (there is no ref that can safely stand in for one; in
+# particular HEAD must never be used, since HEAD is its own ancestor and
+# would make every branch look merged).
 _prune_base_for() {
   local wt="$1" base="$2"
-  if [ -n "$base" ]; then printf '%s' "$base"; return; fi
+  if [ -n "$base" ]; then printf '%s' "$base"; return 0; fi
   local ref
-  ref="$(git -C "$wt" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)" \
-    && { printf '%s' "${ref#refs/remotes/}"; return; }
+  if ref="$(git -C "$wt" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)"; then
+    printf '%s' "${ref#refs/remotes/}"; return 0
+  fi
   local b
   for b in main master; do
-    if git -C "$wt" rev-parse --verify --quiet "$b" >/dev/null; then printf '%s' "$b"; return; fi
+    if git -C "$wt" rev-parse --verify --quiet "$b" >/dev/null; then printf '%s' "$b"; return 0; fi
   done
-  printf '%s' "HEAD"   # fallback: nothing will look "merged" beyond itself
+  return 1
 }
 
 cmd_prune() {
@@ -59,29 +65,23 @@ cmd_prune() {
   require_deps herdr jq git
   require_herdr_server
 
-  local list ids ws pruned=0 considered=0
-  list="$(herdr_do workspace list)"
-  ids="$(printf '%s' "$list" | jq -r '.result.workspaces[].workspace_id')"
+  local rows
+  rows="$(agent_workspace_rows)" || die "could not list agent workspaces"
 
-  for ws in $ids; do
-    local info wt
-    info="$(herdr_do workspace get "$ws")"
-    wt="$(worktree_path_from_info "$info")"   # linked worktrees only — never the primary checkout
-    [ -n "$wt" ] || continue
+  local pruned=0 considered=0
+  local ws label status repo wt
+  while IFS=$'\t' read -r ws label status repo wt; do
+    [ -n "$ws" ] || continue
     considered=$((considered + 1))
-
-    local label status
-    label="$(printf '%s'  "$info" | jq -r '.result.workspace.label // "?"')"
-    status="$(printf '%s' "$info" | jq -r '.result.workspace.agent_status // "unknown"')"
 
     # Never touch a worktree with uncommitted changes.
     if [ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]; then
       continue
     fi
 
-    local reason=""
-    local tgt; tgt="$(_prune_base_for "$wt" "$base")"
-    if git -C "$wt" merge-base --is-ancestor HEAD "$tgt" 2>/dev/null; then
+    local reason="" tgt
+    if tgt="$(_prune_base_for "$wt" "$base")" \
+       && git -C "$wt" merge-base --is-ancestor HEAD "$tgt" 2>/dev/null; then
       reason="merged into $tgt"
     elif [ "$idle" -eq 1 ] && [ "$status" = "idle" ]; then
       reason="idle, clean tree"
@@ -96,16 +96,16 @@ cmd_prune() {
     fi
 
     if [ "$force" -ne 1 ]; then
-      printf 'Prune %s%s%s (%s) — %s? [y/N] ' \
-        "$_c_bold" "$ws" "$_c_rst" "$label" "$reason" >&2
-      local ans; read -r ans
-      case "$ans" in y|Y|yes|YES) ;; *) continue ;; esac
+      local prompt
+      prompt="$(printf 'Prune %s%s%s (%s) — %s? [y/N] ' \
+        "$_c_bold" "$ws" "$_c_rst" "$label" "$reason")"
+      confirm "$prompt" || continue
     fi
 
     herdr_do worktree remove --workspace "$ws" --force >/dev/null
     ok "pruned $ws ($label) — $reason"
     pruned=$((pruned + 1))
-  done
+  done <<<"$rows"
 
   if [ "$pruned" -eq 0 ]; then
     info "nothing to prune ($considered agent workspace(s) checked)"

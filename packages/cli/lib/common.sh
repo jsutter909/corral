@@ -14,11 +14,23 @@ else
   _c_red=; _c_grn=; _c_ylw=; _c_dim=; _c_bold=; _c_rst=
 fi
 
-log()   { printf '%s\n' "$*" >&2; }
 info()  { printf '%s%s%s\n' "$_c_dim" "$*" "$_c_rst" >&2; }
 ok()    { printf '%s✔%s %s\n' "$_c_grn" "$_c_rst" "$*" >&2; }
 warn()  { printf '%s!%s %s\n' "$_c_ylw" "$_c_rst" "$*" >&2; }
 die()   { printf '%serror:%s %s\n' "$_c_red" "$_c_rst" "$*" >&2; exit 1; }
+
+# Ask a yes/no question on the terminal. Returns 0 on yes, 1 on anything else.
+# Reads from /dev/tty (not stdin) so piped input can never auto-confirm a
+# destructive action; without a terminal it refuses instead of hanging/dying.
+confirm() {
+  local prompt="$1" ans
+  printf '%s' "$prompt" >&2
+  if ! read -r ans 2>/dev/null </dev/tty; then
+    printf '\n' >&2
+    die "no terminal available for confirmation — use --force to skip the prompt"
+  fi
+  case "$ans" in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
+}
 
 # ---------------------------------------------------------------------------
 # Dependency check — friendly first-run failures instead of cryptic errors.
@@ -45,36 +57,51 @@ require_herdr_server() {
 }
 
 # ---------------------------------------------------------------------------
-# Config — defaults, then ~/.config/corral/config.sh, then CORRAL_* env, then flags.
+# Config — precedence, later wins: defaults < config file < CORRAL_* env < flags.
 # ---------------------------------------------------------------------------
 load_config() {
-  # Built-in defaults.
-  : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
-  : "${CORRAL_RATIO:=0.6}"              # left (agent) pane share of width, 0..1
-  : "${CORRAL_BRANCH_PREFIX:=agent}"    # prefix for auto-generated branch names
-  : "${CORRAL_BASE:=}"                  # base ref for new worktrees ("" = current HEAD)
   : "${CORRAL_CONFIG:=${XDG_CONFIG_HOME:-$HOME/.config}/corral/config.sh}"
 
-  # User config file can set/override any CORRAL_* value. Env vars set before the
-  # file win only if the file guards with := ; to let the file take precedence we
-  # source it, then re-apply nothing. Flags (parsed later) always win.
+  # The config file uses plain assignments, so it would clobber environment
+  # variables. Snapshot the env first and re-apply it after sourcing, keeping
+  # the documented precedence: env beats file, flags (parsed later) beat both.
+  local env_agent="${CORRAL_AGENT-}" env_ratio="${CORRAL_RATIO-}"
+  local env_prefix="${CORRAL_BRANCH_PREFIX-}" env_base="${CORRAL_BASE-}"
+  local env_worktrees="${CORRAL_WORKTREES_DIR-}"
+
   if [ -f "$CORRAL_CONFIG" ]; then
     # shellcheck disable=SC1090
     . "$CORRAL_CONFIG"
   fi
+
+  if [ -n "$env_agent" ];     then CORRAL_AGENT="$env_agent"; fi
+  if [ -n "$env_ratio" ];     then CORRAL_RATIO="$env_ratio"; fi
+  if [ -n "$env_prefix" ];    then CORRAL_BRANCH_PREFIX="$env_prefix"; fi
+  if [ -n "$env_base" ];      then CORRAL_BASE="$env_base"; fi
+  if [ -n "$env_worktrees" ]; then CORRAL_WORKTREES_DIR="$env_worktrees"; fi
+
+  # Built-in defaults for anything still unset.
+  : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
+  : "${CORRAL_RATIO:=0.6}"              # left (agent) pane share of width, 0..1
+  : "${CORRAL_BRANCH_PREFIX:=agent}"    # prefix for auto-generated branch names
+  : "${CORRAL_BASE:=}"                  # base ref for new worktrees ("" = current HEAD)
+  : "${CORRAL_WORKTREES_DIR:=$HOME/.herdr/worktrees}"  # where herdr checks out corral's worktrees
 }
 
 # ---------------------------------------------------------------------------
 # herdr / JSON helpers
 # ---------------------------------------------------------------------------
 
-# Run a herdr command, capture stdout, and fail loudly on an API error object.
+# Run a herdr command, capture stdout, and fail loudly on error. herdr's stderr
+# passes straight through to the user (capturing it would corrupt the JSON on
+# stdout). The `|| rc=$?` keeps errexit from killing the assignment before the
+# die branch can report what failed.
 # Usage: out="$(herdr_do worktree create --cwd "$repo" ...)"
 herdr_do() {
-  local out rc
-  out="$(herdr "$@" 2>&1)"; rc=$?
-  if [ $rc -ne 0 ]; then
-    die "herdr $1 failed (exit $rc): $out"
+  local out rc=0
+  out="$(herdr "$@")" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    die "herdr $1 failed (exit $rc)${out:+: $out}"
   fi
   # herdr reports API-level failures as {"error":{...}} with a zero exit.
   if printf '%s' "$out" | jq -e 'has("error")' >/dev/null 2>&1; then
@@ -95,39 +122,67 @@ json_get() {
 }
 
 # The workspace id of the pane invoking corral (empty if not inside herdr).
+# Always returns 0 so callers can test the output rather than the status.
 current_workspace() {
   herdr pane current --current 2>/dev/null \
-    | jq -r '.result.pane.workspace_id // empty' 2>/dev/null
+    | jq -r '.result.pane.workspace_id // empty' 2>/dev/null \
+    || true
 }
 
-# Resolve a workspace by id (w4) or by label (checkout-fix). Prints the id.
+# Resolve a workspace by id (w4) or unique label from a `workspace list` blob
+# (exact id match wins over labels). Prints the id.
+# Returns: 0 resolved, 1 no match, 2 ambiguous label.
+# Takes the blob as an argument so herdr failures die in the caller, not in a
+# swallowed subshell.
 resolve_workspace() {
-  local ref="$1"
-  [ -n "$ref" ] || return 1
-  local list; list="$(herdr_do workspace list)"
-  # Exact id match first, then unique label match.
-  local byid; byid="$(printf '%s' "$list" \
-    | jq -r --arg r "$ref" '.result.workspaces[] | select(.workspace_id==$r) | .workspace_id')"
-  if [ -n "$byid" ]; then printf '%s' "$byid"; return 0; fi
-  local bylabel; bylabel="$(printf '%s' "$list" \
-    | jq -r --arg r "$ref" '.result.workspaces[] | select(.label==$r) | .workspace_id')"
-  local n; n="$(printf '%s\n' "$bylabel" | grep -c .)"
-  if [ "$n" -eq 1 ]; then printf '%s' "$bylabel"; return 0; fi
-  if [ "$n" -gt 1 ]; then die "'$ref' matches multiple workspaces; use the workspace id"; fi
-  return 1
+  local ref="$1" list="$2" out
+  out="$(printf '%s' "$list" | jq -r --arg r "$ref" '
+    .result.workspaces as $w
+    | [$w[] | select(.workspace_id == $r) | .workspace_id] as $byid
+    | [$w[] | select(.label == $r)        | .workspace_id] as $bylabel
+    | if ($byid | length) > 0 then $byid[0]
+      elif ($bylabel | length) == 1 then $bylabel[0]
+      elif ($bylabel | length) > 1 then "AMBIGUOUS"
+      else empty end')"
+  case "$out" in
+    "")        return 1 ;;
+    AMBIGUOUS) return 2 ;;
+    *)         printf '%s' "$out" ;;
+  esac
 }
 
-# Is this a corral/agent workspace? Only *linked* worktrees qualify — the
-# primary repo checkout (is_linked_worktree=false) must never be touched by
-# close/prune. Prints the worktree checkout path, or nothing.
-workspace_worktree_path() {
-  local ws="$1"
-  herdr_do workspace get "$ws" \
-    | jq -r '.result.workspace.worktree | select(.is_linked_worktree==true) | .checkout_path // empty'
-}
+# ---------------------------------------------------------------------------
+# Ownership — which workspaces are corral's to touch?
+# A corral workspace is a *linked* git worktree that herdr checked out under
+# $CORRAL_WORKTREES_DIR. The path check matters: a linked worktree the user
+# made by hand (git worktree add + herdr worktree open) is NOT corral's to
+# destroy, and the primary repo checkout (is_linked_worktree=false) never is.
+# NOTE: agent_workspace_rows applies the same two tests in jq — keep in sync.
+# ---------------------------------------------------------------------------
 
-# Same, but takes an already-fetched `workspace get` blob (avoids a second call).
+# Print the worktree checkout path from a `workspace get` blob, but only for
+# corral-owned workspaces; prints nothing otherwise.
 worktree_path_from_info() {
-  printf '%s' "$1" \
-    | jq -r '.result.workspace.worktree | select(.is_linked_worktree==true) | .checkout_path // empty'
+  local wt
+  wt="$(printf '%s' "$1" \
+    | jq -r '.result.workspace.worktree | select(.is_linked_worktree==true) | .checkout_path // empty')"
+  case "$wt" in
+    "$CORRAL_WORKTREES_DIR"/*) printf '%s' "$wt" ;;
+    *) : ;;
+  esac
+}
+
+# Emit one TSV row per corral-owned workspace: id, label, status, repo, path.
+# Single `workspace list` call — the response already embeds the worktree
+# object, so no per-workspace lookups are needed.
+agent_workspace_rows() {
+  local list
+  list="$(herdr_do workspace list)" || return 1
+  printf '%s' "$list" | jq -r --arg dir "$CORRAL_WORKTREES_DIR/" '
+    .result.workspaces[]
+    | select((.worktree.is_linked_worktree // false) == true)
+    | select(.worktree.checkout_path | startswith($dir))
+    | [.workspace_id, (.label // "?"), (.agent_status // "unknown"),
+       (.worktree.repo_name // "?"), .worktree.checkout_path]
+    | @tsv'
 }

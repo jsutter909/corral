@@ -36,6 +36,16 @@ Examples:
 EOF
 }
 
+# EXIT trap while spawn is mid-flight: if anything failed after the worktree
+# was created, roll the partial workspace back so no orphan is left behind.
+_spawn_cleanup() {
+  local rc=$?
+  if [ "$rc" -ne 0 ] && [ -n "${_spawn_partial_ws:-}" ]; then
+    warn "spawn failed — removing partially created workspace ${_spawn_partial_ws}"
+    herdr worktree remove --workspace "$_spawn_partial_ws" --force >/dev/null 2>&1 || true
+  fi
+}
+
 cmd_spawn() {
   local repo_arg="" branch="" base="$CORRAL_BASE" ratio="$CORRAL_RATIO"
   local agent="$CORRAL_AGENT" label="" focus=1
@@ -59,6 +69,10 @@ cmd_spawn() {
   branch="${positional[1]:-}"
   [ -n "$repo_arg" ] || { spawn_usage; die "missing <repo> argument"; }
 
+  # Validate --ratio before any herdr call so a typo can't half-build a workspace.
+  local ratio_re='^(0(\.[0-9]+)?|1(\.0+)?|\.[0-9]+)$'
+  [[ "$ratio" =~ $ratio_re ]] || die "--ratio must be a number between 0 and 1 (got '$ratio')"
+
   require_deps herdr jq git
   require_herdr_server
 
@@ -68,9 +82,10 @@ cmd_spawn() {
     || die "'$repo_arg' is not inside a git repository"
   local name; name="$(basename "$repo")"
 
-  # Default branch: unique + timestamped so parallel agents never collide.
+  # Default branch: timestamp + pid so parallel spawns in the same second
+  # still get distinct names.
   if [ -z "$branch" ]; then
-    branch="${CORRAL_BRANCH_PREFIX}/${name}-$(date +%Y%m%d-%H%M%S)"
+    branch="${CORRAL_BRANCH_PREFIX}/${name}-$(date +%Y%m%d-%H%M%S)-$$"
   fi
   [ -n "$label" ] || label="$(basename "$branch")"
 
@@ -84,14 +99,18 @@ cmd_spawn() {
   left="$(json_get "$resp" '.result.root_pane.pane_id')"
   wt="$(json_get "$resp" '.result.worktree.path')"
 
+  # Any failure past this point must not leave a half-built workspace behind.
+  _spawn_partial_ws="$ws"
+  trap _spawn_cleanup EXIT
+
   # 2) Split the root pane: agent on the left, right column takes (1 - ratio).
-  local rtop rbot
-  rtop="$(json_get "$(herdr_do pane split "$left" --direction right --ratio "$ratio" --no-focus)" \
-          '.result.pane.pane_id')"
+  local split_resp rtop rbot
+  split_resp="$(herdr_do pane split "$left" --direction right --ratio "$ratio" --no-focus)"
+  rtop="$(json_get "$split_resp" '.result.pane.pane_id')"
 
   # 3) Split the right column horizontally into two stacked terminals.
-  rbot="$(json_get "$(herdr_do pane split "$rtop" --direction down --ratio 0.5 --no-focus)" \
-          '.result.pane.pane_id')"
+  split_resp="$(herdr_do pane split "$rtop" --direction down --ratio 0.5 --no-focus)"
+  rbot="$(json_get "$split_resp" '.result.pane.pane_id')"
 
   # 4) Launch the agent in the left pane (unless "none").
   if [ "$agent" != "none" ] && [ -n "$agent" ]; then
@@ -100,6 +119,10 @@ cmd_spawn() {
 
   # 5) Focus the new workspace (lands on the left/agent pane).
   [ "$focus" -eq 1 ] && herdr_do workspace focus "$ws" >/dev/null
+
+  # Success — disarm the cleanup trap.
+  _spawn_partial_ws=""
+  trap - EXIT
 
   ok "agent workspace ${_c_bold}${ws}${_c_rst} (${label})"
   printf '    repo     %s\n'  "$repo"     >&2

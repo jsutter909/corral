@@ -37,6 +37,7 @@ if [ -z "$src" ]; then
   command -v git >/dev/null || die "git is required to install corral"
   if [ -d "$HOME_DIR/.git" ]; then
     say "${dim}updating existing checkout in $HOME_DIR${rst}"
+    git -C "$HOME_DIR" remote set-url origin "$REPO"
     git -C "$HOME_DIR" fetch --quiet origin "$REF"
     git -C "$HOME_DIR" checkout --quiet "$REF"
     git -C "$HOME_DIR" pull --quiet --ff-only origin "$REF"

@@ -34,12 +34,15 @@ corral spawn ~/dev/app --agent none        # just the worktree + terminals
 
 ## `corral ls [--json]`
 
-List active agent workspaces (linked worktrees only — your primary checkouts are
-never listed). Columns: workspace id, label, git branch, agent status, worktree
-path. `--json` emits an array for scripting.
+List active agent workspaces (corral-owned worktrees only — your primary
+checkouts and hand-made worktrees are never listed). Columns: workspace id,
+label, git branch, agent status, worktree path. Data rows go to stdout and the
+header to stderr, so plain `corral ls` pipes cleanly; `--json` emits an array
+for scripting.
 
 ```sh
 corral ls
+corral ls | awk '{print $1}'
 corral ls --json | jq -r '.[].branch'
 ```
 
@@ -57,8 +60,9 @@ corral focus checkout-fix
 Remove an agent's git worktree and close its workspace. With no argument, closes
 the workspace you're currently in. Prompts unless `--force`.
 
-corral refuses to close anything that isn't a linked (corral-created) worktree,
-so it can't destroy your command workspace or a primary repo checkout.
+corral refuses to close anything that isn't a corral-created worktree (a linked
+worktree under `~/.herdr/worktrees/…`), so it can't destroy your command
+workspace, a primary repo checkout, or a worktree you made by hand.
 
 ```sh
 corral close                 # the workspace you're in
@@ -78,7 +82,7 @@ This guarantees prune never discards unmerged or uncommitted work.
 
 | Option | Meaning |
 | --- | --- |
-| `--base <ref>` | Branch to test "merged into" (default: `origin/HEAD`, else `main`, else `master`). |
+| `--base <ref>` | Branch to test "merged into" (default: `origin/HEAD`, else `main`, else `master`; if none exist the merged check is skipped rather than guessed). |
 | `--idle` | Also prune workspaces with a clean tree whose agent is idle, even if the branch isn't merged. |
 | `-n`, `--dry-run` | Show what would be pruned; remove nothing. |
 | `-f`, `--force` | Skip the per-workspace confirmation. |
