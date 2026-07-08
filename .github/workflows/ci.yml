@@ -11,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Install shellcheck, zsh, jq
+        run: sudo apt-get update && sudo apt-get install -y shellcheck zsh jq
 
       - name: Lint
         run: make lint

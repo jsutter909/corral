@@ -59,6 +59,9 @@ packages/cli/
     ├── ls.sh         # cmd_ls
     ├── focus.sh      # cmd_focus
     └── prune.sh      # cmd_prune
+
+packages/omz-plugin/  # zsh layer over the CLI: completion driven by
+                      # `corral ls --json`, aliases, ccd, prompt segment
 ```
 
 Helpers worth knowing in `common.sh`:

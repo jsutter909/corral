@@ -6,7 +6,7 @@ and version together.
 | Package | Status | What it is |
 | --- | --- | --- |
 | [`cli/`](cli/) | ✅ shipping | The `corral` command — spawn and manage isolated agent workspaces. |
-| `omz-plugin/` | 🅿️ planned | An oh-my-zsh plugin: completions, aliases, and a prompt segment showing active corral workspaces. |
+| [`omz-plugin/`](omz-plugin/) | ✅ shipping | oh-my-zsh plugin: tab completion, aliases, `ccd`, and a prompt segment showing active corral workspaces. |
 | _future tooling_ | 💭 ideas | Shell completions (bash/fish), a status-bar helper, richer `ls`/dashboard views. |
 
 ## Conventions for new packages
