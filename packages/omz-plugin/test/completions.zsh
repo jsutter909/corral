@@ -297,11 +297,11 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach send read wait prune clean mcp doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
-  --agent --model --permission-mode --prompt --base --ratio --label --no-focus --no-setup --help
+  --agent --model --permission-mode --prompt --base --ratio --label --no-focus --no-setup --json --help
 
 expect_exact 'corral spawn --agent <TAB> lists agents' \
   $WORK/stub-ok 'corral spawn --agent ' \
@@ -336,6 +336,18 @@ expect_exact 'ccd <TAB> offers workspaces' \
   $WORK/stub-ok 'ccd ' \
   w4 w7 checkout-fix 'tax:\ rounding'
 
+expect_exact 'corral send <TAB> offers workspaces' \
+  $WORK/stub-ok 'corral send ' \
+  w4 w7 checkout-fix 'tax:\ rounding'
+
+expect_exact 'corral wait --<TAB> lists wait flags' \
+  $WORK/stub-ok 'corral wait --' \
+  --status --match --regex --timeout --pane --help
+
+expect_exact 'corral read --<TAB> lists read flags' \
+  $WORK/stub-ok 'corral read --' \
+  --lines --source --ansi --pane --help
+
 expect_exact 'corral ls --<TAB> lists ls flags' \
   $WORK/stub-ok 'corral ls --' \
   --json --help
@@ -355,7 +367,7 @@ expect_exact 'corral doctor --<TAB> lists doctor flags' \
 
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach send read wait prune clean mcp doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -363,7 +375,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach send read wait prune clean mcp doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 

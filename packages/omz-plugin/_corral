@@ -88,8 +88,12 @@ _corral_commands() {
     'list:list active agent workspaces (alias for ls)'
     'focus:switch focus to an agent workspace'
     'attach:switch focus to an agent workspace (alias for focus)'
+    'send:send a prompt to the agent in a workspace'
+    'read:print the recent output of a workspace'\''s agent'
+    'wait:block until an agent reaches a status or output matches'
     'prune:remove finished/stale agent workspaces'
     'clean:remove finished/stale agent workspaces (alias for prune)'
+    'mcp:run the MCP server (orchestrate corral agents from Claude)'
     'doctor:check dependencies and update corral to the latest main'
     'version:print the corral version'
     'help:show help (add a command name for details)'
@@ -140,6 +144,7 @@ _corral() {
             '(-l --label)'{-l,--label}'[workspace label]:label:' \
             '--no-focus[create the workspace without switching focus to it]' \
             '--no-setup[do not run the repo'\''s .corral/setup.sh]' \
+            '(-j --json)'{-j,--json}'[emit a machine-readable spawn result on stdout]' \
             '1:repository directory:_directories' \
             '2::new branch name:_corral_new_branch' \
             && ret=0
@@ -161,6 +166,41 @@ _corral() {
           _arguments -S \
             '(- *)'{-h,--help}'[show ls help]' \
             '(-j --json)'{-j,--json}'[emit machine-readable JSON instead of a table]' \
+            && ret=0
+          ;;
+        send)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show send help]' \
+            '--no-enter[type the text without submitting it]' \
+            '(-p --pane)'{-p,--pane}'[send to a specific pane instead of the agent pane]:pane id:' \
+            '1:workspace:_corral_workspaces' \
+            '*:text:' \
+            && ret=0
+          ;;
+        read)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show read help]' \
+            '(-n --lines)'{-n,--lines}'[number of lines to capture]:lines:' \
+            '(-s --source)'{-s,--source}'[where to read from]:source:(visible recent recent-unwrapped)' \
+            '--ansi[keep ANSI colors/styles]' \
+            '(-p --pane)'{-p,--pane}'[read a specific pane instead of the agent pane]:pane id:' \
+            '1::workspace:_corral_workspaces' \
+            && ret=0
+          ;;
+        wait)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show wait help]' \
+            '(-s --status)'{-s,--status}'[agent status to wait for]:status:(idle working blocked done unknown)' \
+            '(-m --match)'{-m,--match}'[wait for output matching text instead of a status]:text:' \
+            '--regex[treat --match as a regular expression]' \
+            '(-t --timeout)'{-t,--timeout}'[give up after this many milliseconds]:timeout (ms):' \
+            '(-p --pane)'{-p,--pane}'[watch a specific pane instead of the agent pane]:pane id:' \
+            '1::workspace:_corral_workspaces' \
+            && ret=0
+          ;;
+        mcp)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show mcp help]' \
             && ret=0
           ;;
         prune)

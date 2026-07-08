@@ -40,16 +40,7 @@ cmd_close() {
   require_herdr_server
 
   local ws
-  if [ -n "$ref" ]; then
-    local list rc=0
-    list="$(herdr_do workspace list)"
-    ws="$(resolve_workspace "$ref" "$list")" || rc=$?
-    [ "$rc" -ne 2 ] || die "'$ref' matches multiple workspaces; use the workspace id"
-    [ -n "$ws" ] || die "no workspace matching '$ref'"
-  else
-    ws="$(current_workspace)"
-    [ -n "$ws" ] || die "could not determine current workspace; pass one (e.g. corral close w4)"
-  fi
+  ws="$(workspace_or_die "$ref")"
 
   local wsinfo label wt
   wsinfo="$(herdr_do workspace get "$ws")"
