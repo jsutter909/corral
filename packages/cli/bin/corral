@@ -33,6 +33,7 @@ Commands:
   spawn <repo> [branch]   Create an isolated agent workspace in a new git worktree
   ls                      List active agent workspaces
   focus <workspace>       Switch focus to an agent workspace (alias: attach)
+  open [workspace]        Open your IDE (VS Code/Cursor) in a worktree (alias: ide)
   close [workspace]       Remove an agent's worktree and close its workspace
   prune                   Remove finished/stale agent workspaces (merged + clean)
   doctor                  Check dependencies and update corral to the latest main
@@ -63,6 +64,9 @@ main() {
     focus|attach)
       # shellcheck source=../lib/focus.sh
       . "$CORRAL_LIB_DIR/focus.sh"; cmd_focus "$@" ;;
+    open|ide)
+      # shellcheck source=../lib/open.sh
+      . "$CORRAL_LIB_DIR/open.sh";  cmd_open "$@" ;;
     prune|clean)
       # shellcheck source=../lib/prune.sh
       . "$CORRAL_LIB_DIR/prune.sh"; cmd_prune "$@" ;;

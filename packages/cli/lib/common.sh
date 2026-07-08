@@ -70,6 +70,7 @@ load_config() {
   local env_worktrees="${CORRAL_WORKTREES_DIR-}"
   local env_model="${CORRAL_MODEL-}" env_permission_mode="${CORRAL_PERMISSION_MODE-}"
   local env_setup="${CORRAL_SETUP-}" env_cleanup="${CORRAL_CLEANUP-}"
+  local env_ide="${CORRAL_IDE-}" env_ssh_host="${CORRAL_SSH_HOST-}"
 
   if [ -f "$CORRAL_CONFIG" ]; then
     # shellcheck disable=SC1090
@@ -85,6 +86,8 @@ load_config() {
   if [ -n "$env_permission_mode" ]; then CORRAL_PERMISSION_MODE="$env_permission_mode"; fi
   if [ -n "$env_setup" ];           then CORRAL_SETUP="$env_setup"; fi
   if [ -n "$env_cleanup" ];         then CORRAL_CLEANUP="$env_cleanup"; fi
+  if [ -n "$env_ide" ];             then CORRAL_IDE="$env_ide"; fi
+  if [ -n "$env_ssh_host" ];        then CORRAL_SSH_HOST="$env_ssh_host"; fi
 
   # Built-in defaults for anything still unset.
   : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
@@ -96,6 +99,8 @@ load_config() {
   : "${CORRAL_PERMISSION_MODE:=}"       # claude permission/edit mode ("" = Claude's default)
   : "${CORRAL_SETUP:=1}"                # run a repo's .corral/setup.sh before the agent (0 = never)
   : "${CORRAL_CLEANUP:=1}"              # run a repo's .corral/cleanup.sh before removing a worktree (0 = never)
+  : "${CORRAL_IDE:=vscode}"             # IDE for 'corral open': vscode or cursor
+  : "${CORRAL_SSH_HOST:=}"              # ssh host in Remote-SSH links ("" = this machine's hostname)
 }
 
 # ---------------------------------------------------------------------------

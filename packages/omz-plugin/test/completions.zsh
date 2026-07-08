@@ -297,7 +297,7 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
@@ -336,6 +336,19 @@ expect_exact 'ccd <TAB> offers workspaces' \
   $WORK/stub-ok 'ccd ' \
   w4 w7 checkout-fix 'tax:\ rounding'
 
+expect_exact 'corral open <TAB> offers workspaces' \
+  $WORK/stub-ok 'corral open ' \
+  w4 w7 checkout-fix 'tax:\ rounding'
+
+expect_exact 'corral open --<TAB> lists open flags' \
+  $WORK/stub-ok 'corral open --' \
+  --ide --ssh --no-ssh --host --help
+
+# The ide alias shares open's completion.
+expect_exact 'corral ide --ide <TAB> lists IDEs' \
+  $WORK/stub-ok 'corral ide --ide ' \
+  vscode cursor
+
 expect_exact 'corral ls --<TAB> lists ls flags' \
   $WORK/stub-ok 'corral ls --' \
   --json --help
@@ -355,7 +368,7 @@ expect_exact 'corral doctor --<TAB> lists doctor flags' \
 
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -363,7 +376,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  spawn close ls list focus attach prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 
@@ -386,8 +399,8 @@ expect_output 'corral_prompt_info shows the workspace count' \
   'seg=🐎 2.'
 
 expect_output 'aliases are defined' \
-  $WORK/stub-ok 'print -r -- "a=${aliases[csp]}|${aliases[cls]}|${aliases[ccl]}|${aliases[cfo]}|${aliases[cpr]}|${aliases[cdoc]}"' \
-  'a=corral spawn|corral ls|corral close|corral focus|corral prune|corral doctor'
+  $WORK/stub-ok 'print -r -- "a=${aliases[csp]}|${aliases[cls]}|${aliases[ccl]}|${aliases[cfo]}|${aliases[cop]}|${aliases[cpr]}|${aliases[cdoc]}"' \
+  'a=corral spawn|corral ls|corral close|corral focus|corral open|corral prune|corral doctor'
 
 expect_output 'ccd fails cleanly when corral fails' \
   $WORK/stub-fail 'ccd; print -r -- "rc:$?:"' \

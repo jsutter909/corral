@@ -66,6 +66,44 @@ Alias: `corral attach`.
 corral focus checkout-fix
 ```
 
+## `corral open [workspace] [options]`
+
+Open your IDE in an agent workspace's worktree. With no argument, opens the
+worktree of the workspace you're currently in. Alias: `corral ide`.
+
+corral asks herdr for the workspace's worktree checkout path (it never guesses
+from the label), so the IDE always opens the exact folder the agent is working
+in. Any worktree-backed workspace can be opened, not just corral-created ones.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-i, --ide <name>` | `vscode` | IDE to open: `vscode` or `cursor` (config: `CORRAL_IDE`). |
+| `--ssh` | (auto) | Force Remote-SSH mode. |
+| `--no-ssh` | (auto) | Force local mode. |
+| `--host <host>` | this machine's hostname | SSH host used in the Remote-SSH link (config: `CORRAL_SSH_HOST`). |
+
+**Local herdr session** — the IDE runs on the same machine — corral launches it
+directly (`code <worktree>` / `cursor <worktree>`, falling back to
+`open -a` on macOS when the shell command isn't installed).
+
+**Remote herdr session** (`herdr --remote`) — corral runs on the server but
+your IDE runs on your local machine, so it can't be launched from the server.
+corral detects this (an SSH environment or an attached `herdr --remote` client
+bridge) and instead prints a `vscode://vscode-remote/ssh-remote+<host><path>`
+deep link — clickable in most terminals — plus the equivalent
+`code --remote ssh-remote+<host> <path>` command to run locally. Both open the
+worktree over the IDE's Remote-SSH support. The `<host>` must be how **your**
+machine reaches the server (a `Host` entry in your local `~/.ssh/config`); when
+the server's hostname isn't that, set `CORRAL_SSH_HOST` or pass `--host`.
+Use `--ssh`/`--no-ssh` when the auto-detection guesses wrong.
+
+```sh
+corral open                    # the workspace you're in
+corral open checkout-fix       # by label
+corral open w4 --ide cursor
+corral open w4 --host devbox   # remote link via your ssh alias "devbox"
+```
+
 ## `corral close [workspace] [--force]`
 
 Remove an agent's git worktree and close its workspace. With no argument, closes
