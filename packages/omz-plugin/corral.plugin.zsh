@@ -1,3 +1,7 @@
+# GENERATED FILE — do not edit by hand.
+# Source of truth: packages/cli/src/corral/generate/zsh.py (+ the command specs)
+# Regenerate with: python -m corral.generate (or: make generate)
+#
 # corral oh-my-zsh plugin — aliases, ccd, and a prompt segment.
 # Tab completion comes from the _corral file next to this one (oh-my-zsh puts
 # the plugin directory on fpath before compinit, so it loads automatically).
@@ -23,17 +27,18 @@ if (( $+functions[compdef] )) && ! (( $+functions[_corral] )); then
 fi
 
 # ---------------------------------------------------------------------------
-# Aliases — only defined when the name isn't already a command/alias/function,
-# so the plugin never shadows something you have.
+# Aliases — rendered from the command registry (each command's shell_alias).
+# Only defined when the name isn't already a command/alias/function, so the
+# plugin never shadows something you have.
 # ---------------------------------------------------------------------------
 () {
   local name target
   for name target in \
       csp 'corral spawn' \
       cls 'corral ls' \
-      ccl 'corral close' \
       cfo 'corral focus' \
       cop 'corral open' \
+      ccl 'corral close' \
       cpr 'corral prune' \
       cdoc 'corral doctor'; do
     (( $+commands[$name] || $+aliases[$name] || $+functions[$name] )) \
@@ -45,11 +50,11 @@ fi
 # ccd [workspace] — cd this shell into an agent's worktree.
 # With no argument and exactly one active workspace, goes there; otherwise
 # resolves the argument as a workspace id or label. Tab-completes via _corral.
+# Built on `corral ls --tsv`: workspace, label, repo, branch, status, worktree.
 # ---------------------------------------------------------------------------
 ccd() {
   local rows
-  rows="$(command corral ls --json 2>/dev/null \
-    | command jq -r '.[] | [.workspace, .label, .worktree] | @tsv' 2>/dev/null)"
+  rows="$(command corral ls --tsv 2>/dev/null)"
   if [[ -z "$rows" ]]; then
     print -u2 "ccd: no active agent workspaces (is the herdr server running?)"
     return 1
@@ -85,7 +90,7 @@ ccd() {
   fi
 
   fields=("${(@ps:\t:)matches[1]}")
-  cd -- "$fields[3]"
+  cd -- "$fields[6]"
 }
 
 # ---------------------------------------------------------------------------
@@ -101,8 +106,9 @@ ccd() {
 : "${ZSH_THEME_CORRAL_SUFFIX=""}"
 
 corral_prompt_info() {
-  local n
-  n="$(command corral ls --json 2>/dev/null | command jq 'length' 2>/dev/null)"
-  [[ "$n" == <-> ]] && (( n > 0 )) || return 0
-  print -rn -- "${ZSH_THEME_CORRAL_PREFIX}${n}${ZSH_THEME_CORRAL_SUFFIX}"
+  local -a rows
+  rows=( ${(f)"$(command corral ls --tsv 2>/dev/null)"} )
+  rows=( ${rows:#} )
+  (( $#rows )) || return 0
+  print -rn -- "${ZSH_THEME_CORRAL_PREFIX}${#rows}${ZSH_THEME_CORRAL_SUFFIX}"
 }

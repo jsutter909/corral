@@ -56,10 +56,10 @@ ok "corral installed to $BIN_DIR/corral"
 
 # --- Dependency + PATH advice. ------------------------------------------------
 missing=()
-for dep in herdr jq git; do command -v "$dep" >/dev/null 2>&1 || missing+=("$dep"); done
+for dep in herdr git python3; do command -v "$dep" >/dev/null 2>&1 || missing+=("$dep"); done
 if [ ${#missing[@]} -gt 0 ]; then
   warn "missing runtime dependencies: ${missing[*]}"
-  say  "  corral needs herdr, jq, and git on your PATH. See https://herdr.dev"
+  say  "  corral needs herdr, git, and python3 (>= 3.9) on your PATH. See https://herdr.dev"
 fi
 
 case ":$PATH:" in

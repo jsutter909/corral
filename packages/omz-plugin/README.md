@@ -18,9 +18,9 @@ corral close <TAB>           # live workspace ids AND labels, with branch + stat
 corral focus <TAB>           # same
 ```
 
-Workspace completion is fetched live from `corral ls --json`, so it always
+Workspace completion is fetched live from `corral ls --tsv`, so it always
 matches reality; when the herdr server isn't running it quietly completes
-nothing.
+nothing. No `jq` (or anything else) required.
 
 **Aliases** (each is skipped if the name is already taken on your system):
 
@@ -98,11 +98,16 @@ source ~/dev/corral/packages/omz-plugin/corral.plugin.zsh
 
 ```
 omz-plugin/
-├── corral.plugin.zsh    # aliases, ccd, corral_prompt_info
-├── _corral              # completion (#compdef corral ccd)
+├── corral.plugin.zsh    # aliases, ccd, corral_prompt_info   (GENERATED)
+├── _corral              # completion (#compdef corral ccd)   (GENERATED)
 └── test/
     └── completions.zsh  # pty-driven completion tests (no herdr needed)
 ```
+
+`corral.plugin.zsh` and `_corral` are **generated** from the CLI's command
+specs and registries (`packages/cli/src/corral/generate/zsh.py`) — don't edit
+them by hand; change the specs and run `make generate` at the repo root. New
+commands, flags, and agents show up in tab completion automatically.
 
 Run the tests with `zsh test/completions.zsh` (or `make test` at the repo
 root). They drive a real interactive zsh in a pseudo-terminal against a stubbed

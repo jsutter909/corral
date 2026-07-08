@@ -15,4 +15,8 @@ and version together.
 - Its own `README.md` describing what it is and how to install it.
 - No cross-package imports at runtime beyond the documented CLI surface — each
   package should be installable on its own.
-- Keep runtime dependencies minimal (the CLI needs only `herdr`, `git`, `jq`).
+- Keep runtime dependencies minimal (the CLI needs only `herdr`, `git`, and a
+  stock `python3` — no Python packages).
+- If a package's files can be derived from the CLI's registries, generate them
+  (see `packages/cli/src/corral/generate/`) instead of maintaining them by
+  hand — the omz plugin works this way.

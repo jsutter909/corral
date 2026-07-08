@@ -1,87 +1,21 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # corral — spawn and manage isolated AI-agent workspaces on top of herdr.
 # https://github.com/jsutter909/corral
-set -euo pipefail
-# Propagate errexit into $(...) substitutions where supported (bash 4.4+), so
-# a helper dying inside one can't be silently swallowed.
-shopt -s inherit_errexit 2>/dev/null || true
+#
+# Launcher: resolves symlinks (installed as ~/.local/bin/corral), puts the
+# checkout's src/ on sys.path, and hands off to the corral package. Runs
+# straight from a clone — no build step, no dependencies beyond the stdlib.
+import os
+import sys
 
-# ---------------------------------------------------------------------------
-# Locate our lib/ directory, following symlinks (installed as ~/.local/bin/corral).
-# ---------------------------------------------------------------------------
-_src="${BASH_SOURCE[0]}"
-while [ -L "$_src" ]; do
-  _dir="$(cd -P "$(dirname "$_src")" >/dev/null 2>&1 && pwd)"
-  _src="$(readlink "$_src")"
-  [ "${_src#/}" = "$_src" ] && _src="$_dir/$_src"   # resolve relative symlink
-done
-CORRAL_BIN_DIR="$(cd -P "$(dirname "$_src")" >/dev/null 2>&1 && pwd)"
-CORRAL_LIB_DIR="$(cd -P "$CORRAL_BIN_DIR/../lib" >/dev/null 2>&1 && pwd)"
+if sys.version_info < (3, 9):
+    sys.stderr.write("error: corral needs Python 3.9 or newer\n")
+    sys.exit(1)
 
-# shellcheck source=../lib/common.sh
-. "$CORRAL_LIB_DIR/common.sh"
-load_config
+_here = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(_here), "src"))
 
-usage() {
-  cat <<EOF
-${_c_bold}corral${_c_rst} — isolated AI-agent workspaces on top of herdr (v${CORRAL_VERSION})
+from corral.app import main  # noqa: E402
 
-Usage:
-  corral <command> [args]
-
-Commands:
-  spawn <repo> [branch]   Create an isolated agent workspace in a new git worktree
-  ls                      List active agent workspaces
-  focus <workspace>       Switch focus to an agent workspace (alias: attach)
-  open [workspace]        Open your IDE (VS Code/Cursor) in a worktree (alias: ide)
-  close [workspace]       Remove an agent's worktree and close its workspace
-  prune                   Remove finished/stale agent workspaces (merged + clean)
-  doctor                  Check dependencies and update corral to the latest main
-  help [command]          Show help (add a command name for details)
-  version                 Print the corral version
-
-Run 'corral <command> --help' for command-specific options.
-
-Config: ${CORRAL_CONFIG}
-Docs:   https://github.com/jsutter909/corral
-EOF
-}
-
-main() {
-  local cmd="${1:-help}"
-  if [ $# -gt 0 ]; then shift; fi
-
-  case "$cmd" in
-    spawn)
-      # shellcheck source=../lib/spawn.sh
-      . "$CORRAL_LIB_DIR/spawn.sh"; cmd_spawn "$@" ;;
-    close)
-      # shellcheck source=../lib/close.sh
-      . "$CORRAL_LIB_DIR/close.sh"; cmd_close "$@" ;;
-    ls|list)
-      # shellcheck source=../lib/ls.sh
-      . "$CORRAL_LIB_DIR/ls.sh";    cmd_ls "$@" ;;
-    focus|attach)
-      # shellcheck source=../lib/focus.sh
-      . "$CORRAL_LIB_DIR/focus.sh"; cmd_focus "$@" ;;
-    open|ide)
-      # shellcheck source=../lib/open.sh
-      . "$CORRAL_LIB_DIR/open.sh";  cmd_open "$@" ;;
-    prune|clean)
-      # shellcheck source=../lib/prune.sh
-      . "$CORRAL_LIB_DIR/prune.sh"; cmd_prune "$@" ;;
-    doctor)
-      # shellcheck source=../lib/doctor.sh
-      . "$CORRAL_LIB_DIR/doctor.sh"; cmd_doctor "$@" ;;
-    version|--version|-V) printf 'corral %s\n' "$CORRAL_VERSION" ;;
-    help|--help|-h)
-      if [ $# -gt 0 ]; then
-        # Delegate to the subcommand's own --help.
-        exec "$0" "$1" --help
-      fi
-      usage ;;
-    *) usage; die "unknown command: $cmd" ;;
-  esac
-}
-
-main "$@"
+if __name__ == "__main__":
+    sys.exit(main())
