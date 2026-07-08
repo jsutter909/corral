@@ -111,6 +111,39 @@ exit 1'                                                      'fix the tax tests'
 expect_name "no claude falls back"        'fix-the-tax-tests' - 'fix the tax tests'
 rm -rf "$stub"
 
+echo "cleanup hook"
+# run_cleanup <wt> <force>: 0 = safe to remove, 1 = abort removal.
+# CORRAL_CLEANUP is pinned inside the child (3rd arg, default 1) so a value
+# inherited from the developer's or CI's environment can never skew results.
+cleanup_case() { # <wt> <force> [CORRAL_CLEANUP]
+  bash -c 'CORRAL_CLEANUP="$4"; . "$1/common.sh"; run_cleanup "$2" "$3"' _ "$lib" "$1" "$2" "${3:-1}"
+}
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+check "no cleanup script -> proceed"       0 cleanup_case "$tmp" 0
+mkdir -p "$tmp/.corral"
+printf 'exit 0\n' > "$tmp/.corral/cleanup.sh"
+check "cleanup success -> proceed"         0 cleanup_case "$tmp" 0
+printf 'exit 3\n' > "$tmp/.corral/cleanup.sh"
+check "cleanup failure -> abort"           1 cleanup_case "$tmp" 0
+check "cleanup failure + force -> proceed" 0 cleanup_case "$tmp" 1
+check "disabled -> proceed despite fail"   0 cleanup_case "$tmp" 0 0
+
+# The script must not inherit the caller's stdin: prune feeds its while-read
+# loop from a herestring, and a stdin-slurping cleanup.sh (cat, ssh, read)
+# would swallow the remaining workspace rows.
+printf 'cat >/dev/null\n' > "$tmp/.corral/cleanup.sh"
+stdin_preserved() {
+  bash -c '
+    CORRAL_CLEANUP=1
+    . "$1/common.sh"
+    run_cleanup "$2" 0 || exit 1
+    IFS= read -r line && [ "$line" = "row2" ]
+  ' _ "$lib" "$tmp" <<<'row2'
+}
+check "cleanup does not eat caller stdin"  0 stdin_preserved
+
 echo "----"
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

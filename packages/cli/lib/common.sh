@@ -69,7 +69,7 @@ load_config() {
   local env_prefix="${CORRAL_BRANCH_PREFIX-}" env_base="${CORRAL_BASE-}"
   local env_worktrees="${CORRAL_WORKTREES_DIR-}"
   local env_model="${CORRAL_MODEL-}" env_permission_mode="${CORRAL_PERMISSION_MODE-}"
-  local env_setup="${CORRAL_SETUP-}"
+  local env_setup="${CORRAL_SETUP-}" env_cleanup="${CORRAL_CLEANUP-}"
 
   if [ -f "$CORRAL_CONFIG" ]; then
     # shellcheck disable=SC1090
@@ -84,6 +84,7 @@ load_config() {
   if [ -n "$env_model" ];           then CORRAL_MODEL="$env_model"; fi
   if [ -n "$env_permission_mode" ]; then CORRAL_PERMISSION_MODE="$env_permission_mode"; fi
   if [ -n "$env_setup" ];           then CORRAL_SETUP="$env_setup"; fi
+  if [ -n "$env_cleanup" ];         then CORRAL_CLEANUP="$env_cleanup"; fi
 
   # Built-in defaults for anything still unset.
   : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
@@ -94,6 +95,7 @@ load_config() {
   : "${CORRAL_MODEL:=}"                 # model for the claude agent ("" = Claude's default)
   : "${CORRAL_PERMISSION_MODE:=}"       # claude permission/edit mode ("" = Claude's default)
   : "${CORRAL_SETUP:=1}"                # run a repo's .corral/setup.sh before the agent (0 = never)
+  : "${CORRAL_CLEANUP:=1}"              # run a repo's .corral/cleanup.sh before removing a worktree (0 = never)
 }
 
 # ---------------------------------------------------------------------------
@@ -165,6 +167,54 @@ resolve_workspace() {
     AMBIGUOUS) return 2 ;;
     *)         printf '%s' "$out" ;;
   esac
+}
+
+# ---------------------------------------------------------------------------
+# Teardown — run a worktree's .corral/cleanup.sh before the worktree is
+# removed, the counterpart to .corral/setup.sh on spawn. Runs in a subshell
+# cwd'd into the worktree (so the script path stays relative, like setup) with
+# stdin from /dev/null — prune loops over a herestring, and a stdin-reading
+# script must not be able to swallow the remaining rows. The script executes
+# as it exists in the worktree NOW, including changes made during the session
+# (see the security note in docs/configuration.md). Returns 0 when it is safe
+# to proceed with removal: no script present, cleanup disabled, the script
+# succeeded, or the caller forced past a failure. Returns 1 only when the
+# script failed and force is not set — the caller MUST then abort removal
+# (and own the user-facing --force/--no-cleanup hint) so a failing teardown
+# is never silently discarded.
+# Usage: run_cleanup <worktree-path> <force 0|1>
+# ---------------------------------------------------------------------------
+run_cleanup() {
+  local wt="$1" force="$2"
+  [ "$CORRAL_CLEANUP" = "1" ] || return 0
+  [ -f "$wt/.corral/cleanup.sh" ] || return 0
+
+  info "running .corral/cleanup.sh"
+  local rc=0
+  ( cd "$wt" && bash .corral/cleanup.sh </dev/null ) || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$force" -eq 1 ]; then
+    warn ".corral/cleanup.sh failed (exit $rc) — continuing anyway (--force)"
+    return 0
+  fi
+  warn ".corral/cleanup.sh failed (exit $rc)"
+  return 1
+}
+
+# Run the cleanup hook, then remove a workspace's worktree — the single choke
+# point for destroying corral workspaces, so no removal path can forget the
+# cleanup-before-remove invariant. cleanup=0 skips the hook (--no-cleanup);
+# force=1 also removes when the hook fails. Returns 1 (nothing removed) when
+# cleanup fails and force is 0.
+# Usage: remove_workspace <ws> <wt> <force 0|1> <cleanup 0|1>
+remove_workspace() {
+  local ws="$1" wt="$2" force="$3" cleanup="$4"
+  if [ "$cleanup" = "1" ]; then
+    run_cleanup "$wt" "$force" || return 1
+  fi
+  herdr_do worktree remove --workspace "$ws" --force >/dev/null
 }
 
 # ---------------------------------------------------------------------------

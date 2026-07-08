@@ -102,7 +102,9 @@ CORRAL_BASE=main             # base ref for new worktrees ("" = current HEAD)
 
 A repo can also commit a `.corral/setup.sh` to prepare each workspace (install
 deps, copy a `.env`, …) — spawn runs it in the agent pane and only starts the
-agent once it succeeds.
+agent once it succeeds — and a `.corral/cleanup.sh` to tear it down: corral runs
+it in the worktree before `close`/`prune` removes it, and aborts the removal if
+it fails (override with `--force`, or skip the script with `--no-cleanup`).
 
 See [`docs/configuration.md`](docs/configuration.md) and
 [`packages/cli/share/config.example.sh`](packages/cli/share/config.example.sh).
