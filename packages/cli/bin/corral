@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# corral — spawn and manage isolated AI-agent workspaces on top of herdr.
+# https://github.com/YOURNAME/corral
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Locate our lib/ directory, following symlinks (installed as ~/.local/bin/corral).
+# ---------------------------------------------------------------------------
+_src="${BASH_SOURCE[0]}"
+while [ -L "$_src" ]; do
+  _dir="$(cd -P "$(dirname "$_src")" >/dev/null 2>&1 && pwd)"
+  _src="$(readlink "$_src")"
+  [ "${_src#/}" = "$_src" ] && _src="$_dir/$_src"   # resolve relative symlink
+done
+CORRAL_BIN_DIR="$(cd -P "$(dirname "$_src")" >/dev/null 2>&1 && pwd)"
+CORRAL_LIB_DIR="$(cd -P "$CORRAL_BIN_DIR/../lib" >/dev/null 2>&1 && pwd)"
+
+# shellcheck source=../lib/common.sh
+. "$CORRAL_LIB_DIR/common.sh"
+load_config
+
+usage() {
+  cat <<EOF
+${_c_bold}corral${_c_rst} — isolated AI-agent workspaces on top of herdr (v${CORRAL_VERSION})
+
+Usage:
+  corral <command> [args]
+
+Commands:
+  spawn <repo> [branch]   Create an isolated agent workspace in a new git worktree
+  ls                      List active agent workspaces
+  focus <workspace>       Switch focus to an agent workspace (alias: attach)
+  close [workspace]       Remove an agent's worktree and close its workspace
+  prune                   Remove finished/stale agent workspaces (merged + clean)
+  help [command]          Show help (add a command name for details)
+  version                 Print the corral version
+
+Run 'corral <command> --help' for command-specific options.
+
+Config: ${CORRAL_CONFIG}
+Docs:   https://github.com/YOURNAME/corral
+EOF
+}
+
+main() {
+  local cmd="${1:-help}"
+  if [ $# -gt 0 ]; then shift; fi
+
+  case "$cmd" in
+    spawn)
+      # shellcheck source=../lib/spawn.sh
+      . "$CORRAL_LIB_DIR/spawn.sh"; cmd_spawn "$@" ;;
+    close)
+      # shellcheck source=../lib/close.sh
+      . "$CORRAL_LIB_DIR/close.sh"; cmd_close "$@" ;;
+    ls|list)
+      # shellcheck source=../lib/ls.sh
+      . "$CORRAL_LIB_DIR/ls.sh";    cmd_ls "$@" ;;
+    focus|attach)
+      # shellcheck source=../lib/focus.sh
+      . "$CORRAL_LIB_DIR/focus.sh"; cmd_focus "$@" ;;
+    prune|clean)
+      # shellcheck source=../lib/prune.sh
+      . "$CORRAL_LIB_DIR/prune.sh"; cmd_prune "$@" ;;
+    version|--version|-V) printf 'corral %s\n' "$CORRAL_VERSION" ;;
+    help|--help|-h)
+      if [ $# -gt 0 ]; then
+        # Delegate to the subcommand's own --help.
+        exec "$0" "$1" --help
+      fi
+      usage ;;
+    *) usage; die "unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"

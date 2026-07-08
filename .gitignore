@@ -1,0 +1,14 @@
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Local, uncommitted config
+config.local.sh
+*.local
+
+# Test / build scratch
+/tmp/
+*.log
