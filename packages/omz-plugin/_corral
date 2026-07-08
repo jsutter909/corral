@@ -88,6 +88,8 @@ _corral_commands() {
     'list:list active agent workspaces (alias for ls)'
     'focus:switch focus to an agent workspace'
     'attach:switch focus to an agent workspace (alias for focus)'
+    'open:open your IDE (VS Code/Cursor) in a workspace'\''s worktree'
+    'ide:open your IDE in a workspace'\''s worktree (alias for open)'
     'prune:remove finished/stale agent workspaces'
     'clean:remove finished/stale agent workspaces (alias for prune)'
     'doctor:check dependencies and update corral to the latest main'
@@ -124,6 +126,7 @@ _corral() {
       case $cmd in            # aliases share their target's completion
         list)   cmd=ls ;;
         attach) cmd=focus ;;
+        ide)    cmd=open ;;
         clean)  cmd=prune ;;
       esac
       curcontext="${curcontext%:*:*}:corral-${cmd}:"
@@ -156,6 +159,16 @@ _corral() {
           _arguments -S \
             '(- *)'{-h,--help}'[show focus help]' \
             '1:workspace:_corral_workspaces' \
+            && ret=0
+          ;;
+        open)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show open help]' \
+            '(-i --ide)'{-i,--ide}'[IDE to open]:ide:(vscode cursor)' \
+            '(--no-ssh)--ssh[force Remote-SSH mode (print a link for your local machine)]' \
+            '(--ssh)--no-ssh[force local mode (launch the IDE on this machine)]' \
+            '--host[ssh host used in the Remote-SSH link]:host:_hosts' \
+            '1::workspace:_corral_workspaces' \
             && ret=0
           ;;
         ls)

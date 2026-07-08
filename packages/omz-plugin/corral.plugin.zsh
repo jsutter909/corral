@@ -33,6 +33,7 @@ fi
       cls 'corral ls' \
       ccl 'corral close' \
       cfo 'corral focus' \
+      cop 'corral open' \
       cpr 'corral prune' \
       cdoc 'corral doctor'; do
     (( $+commands[$name] || $+aliases[$name] || $+functions[$name] )) \

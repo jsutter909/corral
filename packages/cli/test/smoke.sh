@@ -25,6 +25,8 @@ check "spawn --help exits 0"        0 "$CORRAL" spawn --help
 check "close --help exits 0"        0 "$CORRAL" close --help
 check "ls --help exits 0"           0 "$CORRAL" ls --help
 check "focus --help exits 0"        0 "$CORRAL" focus --help
+check "open --help exits 0"         0 "$CORRAL" open --help
+check "ide --help exits 0"          0 "$CORRAL" ide --help
 check "prune --help exits 0"        0 "$CORRAL" prune --help
 check "doctor --help exits 0"       0 "$CORRAL" doctor --help
 check "help spawn exits 0"          0 "$CORRAL" help spawn
@@ -36,6 +38,9 @@ check "spawn -p w/o value !=0"       1 "$CORRAL" spawn . -p
 check "spawn -b w/o value !=0"       1 "$CORRAL" spawn . -b
 check "spawn unknown short flag !=0" 1 "$CORRAL" spawn . -z
 check "focus without arg exits 1"   1 "$CORRAL" focus
+check "open --ide w/o value !=0"     1 "$CORRAL" open --ide
+check "open unknown ide exits 1"     1 "$CORRAL" open --ide emacs
+check "open unknown flag exits 1"    1 "$CORRAL" open --bogus
 
 echo "launch-string construction"
 lib="$here/../lib"
@@ -61,6 +66,34 @@ expect "setup + prompt"           "bash .corral/setup.sh && claude 'fix the test
                                                                     claude '' '' 'fix the tests' 1
 expect "prompt quote escaping"    "claude 'it'\\''s broken'"        claude '' '' "it's broken" 0
 expect "prompt dropped for none"  'bash .corral/setup.sh'           none   '' '' 'fix the tests' 1
+
+echo "open: IDE mapping + Remote-SSH URIs"
+openfn() { # openfn <function> <args...>
+  bash -c '. "$1/common.sh"; . "$1/open.sh"; fn="$2"; shift 2; "$fn" "$@"' _ "$lib" "$@"
+}
+expect_fn() { # expect_fn <description> <want> <function> <args...>
+  local desc="$1" want="$2" got; shift 2
+  got="$(openfn "$@")"
+  if [ "$got" = "$want" ]; then
+    printf '  ok   %s\n' "$desc"; pass=$((pass + 1))
+  else
+    printf '  FAIL %s (got "%s", wanted "%s")\n' "$desc" "$got" "$want"; fail=$((fail + 1))
+  fi
+}
+expect_fn "vscode maps to the code CLI"   "$(printf 'code\tvscode\tVisual Studio Code')" ide_fields vscode
+expect_fn "code is accepted for vscode"   "$(printf 'code\tvscode\tVisual Studio Code')" ide_fields code
+expect_fn "cursor maps to the cursor CLI" "$(printf 'cursor\tcursor\tCursor')"           ide_fields cursor
+check "unknown ide is rejected"          1 openfn ide_fields emacs
+expect_fn "plain paths pass through unencoded" '/home/jake/.herdr/worktrees/app/agent-fix' \
+  ide_encode_path '/home/jake/.herdr/worktrees/app/agent-fix'
+expect_fn "uri-hostile path chars are percent-encoded" '/home/j/a%20b%23c%3Fd' \
+  ide_encode_path '/home/j/a b#c?d'
+expect_fn "vscode remote uri" \
+  'vscode://vscode-remote/ssh-remote+devbox/home/jake/wt' \
+  ide_remote_uri vscode devbox /home/jake/wt
+expect_fn "cursor remote uri encodes the path" \
+  'cursor://vscode-remote/ssh-remote+devbox/home/jake/my%20wt' \
+  ide_remote_uri cursor devbox '/home/jake/my wt'
 
 echo "branch naming from prompt"
 slug() { bash -c '. "$1/common.sh"; . "$1/spawn.sh"; spawn_branch_slug "$2"' _ "$lib" "$1"; }

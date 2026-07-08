@@ -58,6 +58,7 @@ corral spawn ~/dev/app --prompt "fix tests" # hand the agent an opening prompt
 
 corral ls                                   # see what's running
 corral focus checkout                        # jump to an agent by label or id
+corral open checkout                         # open the worktree in VS Code/Cursor
 corral close                                 # tear down the workspace you're in
 corral prune                                 # remove merged + clean agent workspaces
 corral doctor                                # check deps + update to the latest main
@@ -70,6 +71,7 @@ corral doctor                                # check deps + update to the latest
 | `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent. |
 | `corral ls [--json]` | List active agent workspaces (id, label, branch, status, path). |
 | `corral focus <workspace>` | Switch focus to an agent by id or label (alias: `attach`). |
+| `corral open [workspace]` | Open your IDE (VS Code or Cursor) in an agent's worktree — via Remote-SSH links when the herdr session is remote (alias: `ide`). |
 | `corral close [workspace]` | Remove an agent's worktree and close its workspace. |
 | `corral prune` | Remove agent workspaces that are merged **and** have a clean tree. |
 | `corral doctor` | Check dependencies and update corral to the latest `main`. |
@@ -95,6 +97,7 @@ override them.
 CORRAL_AGENT=claude          # or codex, copilot, droid, opencode, cursor, none
 CORRAL_MODEL=                # model for the claude agent ("" = Claude's default)
 CORRAL_PERMISSION_MODE=      # claude edit mode: acceptEdits, plan, … (claude only)
+CORRAL_IDE=vscode            # IDE for 'corral open': vscode or cursor
 CORRAL_RATIO=0.4             # agent pane width share, 0..1
 CORRAL_BRANCH_PREFIX=agent   # <prefix>/<repo>-<timestamp>
 CORRAL_BASE=main             # base ref for new worktrees ("" = current HEAD)

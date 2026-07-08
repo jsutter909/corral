@@ -32,6 +32,16 @@ CORRAL_AGENT=claude
 # --force. Set to 0 to disable, or skip per-run with: corral close --no-cleanup
 # CORRAL_CLEANUP=1
 
+# IDE opened by 'corral open': vscode or cursor.
+# Override per-run with: corral open <workspace> --ide <name>
+# CORRAL_IDE=vscode
+
+# SSH host used in the Remote-SSH links 'corral open' prints when the herdr
+# session is remote (herdr --remote). Must match how YOUR machine reaches this
+# one — a Host entry in your local ~/.ssh/config. Empty = this machine's
+# hostname. Override per-run with: corral open <workspace> --host <host>
+# CORRAL_SSH_HOST=
+
 # Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
 CORRAL_RATIO=0.4
 
