@@ -147,7 +147,8 @@ _corral() {
         close)
           _arguments -S \
             '(- *)'{-h,--help}'[show close help]' \
-            '(-f --force)'{-f,--force}'[skip the confirmation prompt]' \
+            '(-f --force)'{-f,--force}'[skip the confirmation prompt; remove even if .corral/cleanup.sh fails]' \
+            '--no-cleanup[do not run the worktree'\''s .corral/cleanup.sh]' \
             '1::workspace:_corral_workspaces' \
             && ret=0
           ;;
@@ -169,7 +170,8 @@ _corral() {
             '(-b --base)'{-b,--base}'[branch to test "merged into" against]:git ref:_corral_git_refs' \
             '(-i --idle)'{-i,--idle}'[also prune idle workspaces with a clean tree]' \
             '(-n --dry-run)'{-n,--dry-run}'[show what would be pruned without removing anything]' \
-            '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt]' \
+            '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt; prune even if .corral/cleanup.sh fails]' \
+            '--no-cleanup[do not run the worktree'\''s .corral/cleanup.sh]' \
             && ret=0
           ;;
         doctor)

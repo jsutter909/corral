@@ -75,6 +75,12 @@ corral refuses to close anything that isn't a corral-created worktree (a linked
 worktree under `~/.herdr/worktrees/…`), so it can't destroy your command
 workspace, a primary repo checkout, or a worktree you made by hand.
 
+If the worktree contains a `.corral/cleanup.sh`, corral runs it there before
+removing it. If cleanup fails, close aborts and leaves the worktree intact;
+`--force` removes it anyway (re-running the script) and `--no-cleanup` skips
+the script entirely. See
+[per-repo configuration](configuration.md#per-repo-configuration-corral).
+
 ```sh
 corral close                 # the workspace you're in
 corral close checkout-fix    # by label
@@ -96,7 +102,12 @@ This guarantees prune never discards unmerged or uncommitted work.
 | `-b`, `--base <ref>` | Branch to test "merged into" (default: `origin/HEAD`, else `main`, else `master`; if none exist the merged check is skipped rather than guessed). |
 | `-i`, `--idle` | Also prune workspaces with a clean tree whose agent is idle, even if the branch isn't merged. |
 | `-n`, `--dry-run` | Show what would be pruned; remove nothing. |
-| `-f`, `--force` | Skip the per-workspace confirmation. |
+| `-f`, `--force` | Skip the per-workspace confirmation, and prune even if a workspace's `.corral/cleanup.sh` fails. |
+| `--no-cleanup` | Do not run `.corral/cleanup.sh` before removing worktrees. |
+
+If a workspace's worktree contains a `.corral/cleanup.sh`, corral runs it there
+before removing the worktree; a workspace whose cleanup fails is skipped
+(worktree kept) unless `--force` is given.
 
 ```sh
 corral prune --dry-run

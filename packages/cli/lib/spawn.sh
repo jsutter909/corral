@@ -56,10 +56,15 @@ EOF
 
 # EXIT trap while spawn is mid-flight: if anything failed after the worktree
 # was created, roll the partial workspace back so no orphan is left behind.
+# Runs the cleanup hook best-effort first (force=1): setup.sh may already have
+# started in the pane and created external resources, and once the worktree is
+# gone its cleanup.sh is gone with it — but a cleanup failure must never block
+# the rollback itself.
 _spawn_cleanup() {
   local rc=$?
   if [ "$rc" -ne 0 ] && [ -n "${_spawn_partial_ws:-}" ]; then
     warn "spawn failed — removing partially created workspace ${_spawn_partial_ws}"
+    run_cleanup "${_spawn_partial_wt:-}" 1 || true
     herdr worktree remove --workspace "$_spawn_partial_ws" --force >/dev/null 2>&1 || true
   fi
 }
@@ -202,6 +207,7 @@ cmd_spawn() {
 
   # Any failure past this point must not leave a half-built workspace behind.
   _spawn_partial_ws="$ws"
+  _spawn_partial_wt="$wt"
   trap _spawn_cleanup EXIT
 
   # 2) Split the root pane: agent on the left, right column takes (1 - ratio).
@@ -243,6 +249,7 @@ cmd_spawn() {
 
   # Success — disarm the cleanup trap.
   _spawn_partial_ws=""
+  _spawn_partial_wt=""
   trap - EXIT
 
   ok "agent workspace ${_c_bold}${ws}${_c_rst} (${label})"

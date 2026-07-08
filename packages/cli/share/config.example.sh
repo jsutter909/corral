@@ -26,6 +26,12 @@ CORRAL_AGENT=claude
 # Set to 0 to disable. Override per-run with: corral spawn <repo> --no-setup
 # CORRAL_SETUP=1
 
+# Run a worktree's .corral/cleanup.sh before it is removed on close/prune (the
+# teardown counterpart to setup.sh; runs as the script exists at that moment).
+# If cleanup fails the removal is aborted (worktree kept) unless you pass
+# --force. Set to 0 to disable, or skip per-run with: corral close --no-cleanup
+# CORRAL_CLEANUP=1
+
 # Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
 CORRAL_RATIO=0.4
 

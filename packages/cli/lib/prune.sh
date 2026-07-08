@@ -22,7 +22,14 @@ Options:
                  idle, even if the branch is not merged (still requires a clean
                  tree; use with care).
   -n, --dry-run  Show what would be pruned without removing anything.
-  -f, --force    Skip the per-workspace confirmation prompt.
+  -f, --force    Skip the per-workspace confirmation prompt, and prune a
+                 workspace even if its .corral/cleanup.sh fails (the script
+                 still runs).
+  --no-cleanup   Do not run .corral/cleanup.sh (also: CORRAL_CLEANUP=0).
+
+If a workspace's worktree contains a .corral/cleanup.sh, corral runs it there
+before removing the worktree. If cleanup fails, that workspace is skipped
+(worktree kept) unless --force is given.
 
 Examples:
   corral prune --dry-run
@@ -50,7 +57,7 @@ _prune_base_for() {
 }
 
 cmd_prune() {
-  local base="" idle=0 dry=0 force=0
+  local base="" idle=0 dry=0 force=0 cleanup=1
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)   prune_usage; return 0 ;;
@@ -58,6 +65,7 @@ cmd_prune() {
       -i|--idle)   idle=1; shift ;;
       -n|--dry-run) dry=1; shift ;;
       -f|--force)  force=1; shift ;;
+      --no-cleanup) cleanup=0; shift ;;
       -*) die "unknown option: $1 (try 'corral prune --help')" ;;
       *)  die "unexpected argument: $1" ;;
     esac
@@ -103,7 +111,10 @@ cmd_prune() {
       confirm "$prompt" || continue
     fi
 
-    herdr_do worktree remove --workspace "$ws" --force >/dev/null
+    if ! remove_workspace "$ws" "$wt" "$force" "$cleanup"; then
+      warn "skipping $ws ($label) — cleanup failed (--force to prune anyway, --no-cleanup to skip the script)"
+      continue
+    fi
     ok "pruned $ws ($label) — $reason"
     pruned=$((pruned + 1))
   done <<<"$rows"

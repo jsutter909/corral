@@ -347,7 +347,7 @@ expect_exact 'corral ls -<TAB> lists ls flags (short + long)' \
 
 expect_exact 'corral prune --<TAB> lists prune flags' \
   $WORK/stub-ok 'corral prune --' \
-  --base --idle --dry-run --force --help
+  --base --idle --dry-run --force --no-cleanup --help
 
 expect_exact 'corral doctor --<TAB> lists doctor flags' \
   $WORK/stub-ok 'corral doctor --' \

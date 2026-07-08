@@ -13,7 +13,14 @@ Arguments:
                 Defaults to the workspace you're currently in.
 
 Options:
-  -f, --force   Skip the confirmation prompt.
+  -f, --force    Skip the confirmation prompt, and close even if the worktree's
+                 .corral/cleanup.sh fails (the script still runs).
+  --no-cleanup   Do not run .corral/cleanup.sh (also: CORRAL_CLEANUP=0).
+
+If the worktree contains a .corral/cleanup.sh, corral runs it there before
+removing the worktree. If cleanup fails, close aborts and leaves the worktree
+intact; --force removes it anyway (re-running the script), --no-cleanup
+removes it without running the script at all.
 
 Guard: corral refuses to close a workspace that is not worktree-backed, so it
 can never destroy your command/control workspace.
@@ -26,11 +33,12 @@ EOF
 }
 
 cmd_close() {
-  local ref="" force=0
+  local ref="" force=0 cleanup=1
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help)  close_usage; return 0 ;;
       -f|--force) force=1; shift ;;
+      --no-cleanup) cleanup=0; shift ;;
       -*) die "unknown option: $1 (try 'corral close --help')" ;;
       *)  ref="$1"; shift ;;
     esac
@@ -66,6 +74,7 @@ cmd_close() {
     confirm "$prompt" || { info "aborted"; return 0; }
   fi
 
-  herdr_do worktree remove --workspace "$ws" --force >/dev/null
+  remove_workspace "$ws" "$wt" "$force" "$cleanup" \
+    || die "cleanup failed for $ws ($label) — worktree left intact (--force to remove anyway, --no-cleanup to skip the script)"
   ok "removed worktree and closed workspace $ws ($label)"
 }
