@@ -11,7 +11,7 @@ Create an isolated agent workspace in a fresh git worktree.
 | Arg | Meaning |
 | --- | --- |
 | `<repo>` | Any path inside the git repo to branch from (e.g. `~/dev/app` or `.`). corral resolves it to the repo root. |
-| `[branch]` | Branch name for the worktree. Default: `<prefix>/<repo>-<timestamp>`. |
+| `[branch]` | Branch name for the worktree. Default: with `--prompt`, `<prefix>/<name>` where `<name>` is generated from the prompt by the `claude` CLI (falling back to slugged prompt text, with a numeric suffix if the branch already exists); otherwise `<prefix>/<repo>-<timestamp>`. |
 
 **Options**
 
@@ -20,7 +20,7 @@ Create an isolated agent workspace in a fresh git worktree.
 | `-a, --agent <name>` | `claude` | Agent to launch in the left pane, or `none` for a blank shell. Any herdr-integrated agent works (`claude`, `codex`, `copilot`, `droid`, `opencode`, `cursor`, …). |
 | `-m, --model <name>` | Claude's default | Model for the Claude agent. Applies to the `claude` agent only; ignored (with a warning) for others. |
 | `-P, --permission-mode <mode>` | Claude's default | Claude permission/edit mode, e.g. `acceptEdits`, `plan`. `claude` agent only. |
-| `-p, --prompt <text>` | (none) | Initial prompt handed to the agent on launch, as its first positional argument. Ignored (with a warning) for `--agent none`. |
+| `-p, --prompt <text>` | (none) | Initial prompt handed to the agent on launch, as its first positional argument. Ignored (with a warning) for `--agent none`. When `[branch]` is omitted, the branch is named after the prompt too. |
 | `-b, --base <ref>` | current HEAD | Base ref the new worktree branches from. |
 | `-r, --ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
 | `-l, --label <text>` | branch basename | herdr workspace label. |
@@ -39,7 +39,7 @@ corral spawn ~/dev/app
 corral spawn ~/dev/app feature/checkout
 corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
 corral spawn ~/dev/app --model opus --permission-mode acceptEdits
-corral spawn ~/dev/app --prompt "fix the failing tax tests"
+corral spawn ~/dev/app --prompt "fix the failing tax tests"   # branch: e.g. agent/fix-failing-tax-tests
 corral spawn ~/dev/app --agent none        # just the worktree + terminals
 ```
 
