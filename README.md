@@ -61,21 +61,46 @@ corral focus checkout                        # jump to an agent by label or id
 corral close                                 # tear down the workspace you're in
 corral prune                                 # remove merged + clean agent workspaces
 corral doctor                                # check deps + update to the latest main
+
+# Drive agents without touching their panes:
+corral spawn ~/dev/app --prompt "fix issue #42" --no-focus   # spawn already working
+corral send w4 "also add a regression test"  # prompt a running agent
+corral wait w4                               # block until it goes idle
+corral read w4 --lines 100                   # see what it did
 ```
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent. |
+| `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent (`--prompt` starts it working, `--json` for scripting). |
 | `corral ls [--json]` | List active agent workspaces (id, label, branch, status, path). |
 | `corral focus <workspace>` | Switch focus to an agent by id or label (alias: `attach`). |
+| `corral send <ws> <text>` | Send a prompt to the agent running in a workspace. |
+| `corral read <ws>` | Print the recent output of a workspace's agent pane. |
+| `corral wait <ws>` | Block until an agent goes idle/blocked, or its output matches. |
 | `corral close [workspace]` | Remove an agent's worktree and close its workspace. |
 | `corral prune` | Remove agent workspaces that are merged **and** have a clean tree. |
+| `corral mcp` | Run corral as an MCP server — orchestrate agents from Claude Code. |
 | `corral doctor` | Check dependencies and update corral to the latest `main`. |
 | `corral help [command]` | Help, optionally for a specific command. |
 
 Every command has `--help`. Full reference: [`docs/usage.md`](docs/usage.md).
+
+### Orchestration
+
+A parent agent can drive a whole fleet: `spawn --prompt` starts workers on
+their own branches, `wait`/`read`/`send` steer them, and `corral mcp` exposes
+all of it as MCP tools so a Claude Code session can do the orchestrating:
+
+```sh
+claude mcp add corral -- corral mcp
+```
+
+Then ask Claude to, say, *"spawn a corral agent per failing test suite, wait
+for them to finish, and summarize the results"*. The workers stay ordinary
+interactive panes — jump in with `corral focus` and take over any time. See
+[`docs/orchestration.md`](docs/orchestration.md).
 
 ### Safety
 

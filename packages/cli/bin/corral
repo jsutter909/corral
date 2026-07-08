@@ -33,8 +33,12 @@ Commands:
   spawn <repo> [branch]   Create an isolated agent workspace in a new git worktree
   ls                      List active agent workspaces
   focus <workspace>       Switch focus to an agent workspace (alias: attach)
+  send <ws> <text>        Send a prompt to the agent in a workspace
+  read <ws>               Print the recent output of a workspace's agent
+  wait <ws>               Block until an agent goes idle/blocked or output matches
   close [workspace]       Remove an agent's worktree and close its workspace
   prune                   Remove finished/stale agent workspaces (merged + clean)
+  mcp                     Run the MCP server (orchestrate corral agents from Claude)
   doctor                  Check dependencies and update corral to the latest main
   help [command]          Show help (add a command name for details)
   version                 Print the corral version
@@ -63,9 +67,21 @@ main() {
     focus|attach)
       # shellcheck source=../lib/focus.sh
       . "$CORRAL_LIB_DIR/focus.sh"; cmd_focus "$@" ;;
+    send)
+      # shellcheck source=../lib/send.sh
+      . "$CORRAL_LIB_DIR/send.sh";  cmd_send "$@" ;;
+    read)
+      # shellcheck source=../lib/read.sh
+      . "$CORRAL_LIB_DIR/read.sh";  cmd_read "$@" ;;
+    wait)
+      # shellcheck source=../lib/wait.sh
+      . "$CORRAL_LIB_DIR/wait.sh";  cmd_wait "$@" ;;
     prune|clean)
       # shellcheck source=../lib/prune.sh
       . "$CORRAL_LIB_DIR/prune.sh"; cmd_prune "$@" ;;
+    mcp)
+      # shellcheck source=../lib/mcp.sh
+      . "$CORRAL_LIB_DIR/mcp.sh";   cmd_mcp "$@" ;;
     doctor)
       # shellcheck source=../lib/doctor.sh
       . "$CORRAL_LIB_DIR/doctor.sh"; cmd_doctor "$@" ;;

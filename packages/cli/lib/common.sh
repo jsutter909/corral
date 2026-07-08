@@ -167,6 +167,40 @@ resolve_workspace() {
   esac
 }
 
+# Resolve a workspace ref (id or label) to a workspace id, dying with a
+# friendly message on no match or an ambiguous label. An empty ref resolves
+# to the workspace the caller is currently inside.
+workspace_or_die() {
+  local ref="$1" ws
+  if [ -n "$ref" ]; then
+    local list rc=0
+    list="$(herdr_do workspace list)"
+    ws="$(resolve_workspace "$ref" "$list")" || rc=$?
+    [ "$rc" -ne 2 ] || die "'$ref' matches multiple workspaces; use the workspace id"
+    [ -n "$ws" ] || die "no workspace matching '$ref'"
+  else
+    ws="$(current_workspace)"
+    [ -n "$ws" ] || die "could not determine current workspace; pass one (e.g. corral send w4 ...)"
+  fi
+  printf '%s' "$ws"
+}
+
+# The pane that send/read/wait should talk to for a workspace. corral launches
+# the agent in the workspace's first (root) pane, so prefer the first pane
+# herdr reports with an agent attached; a workspace spawned with --agent none
+# has no agent pane, so fall back to the first pane (the root shell). herdr
+# lists panes in creation order.
+# Prints "pane_id<TAB>agent<TAB>agent_status"; returns 1 if there are no panes.
+agent_pane_for_workspace() {
+  local ws="$1" panes
+  panes="$(herdr_do pane list --workspace "$ws")"
+  printf '%s' "$panes" | jq -re '
+    .result.panes as $p
+    | (([$p[] | select((.agent // "") != "")] | first) // ($p | first))
+    | select(. != null)
+    | [.pane_id, (.agent // "none"), (.agent_status // "unknown")] | @tsv'
+}
+
 # ---------------------------------------------------------------------------
 # Ownership — which workspaces are corral's to touch?
 # A corral workspace is a *linked* git worktree that herdr checked out under

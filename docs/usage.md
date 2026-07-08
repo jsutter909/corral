@@ -26,6 +26,7 @@ Create an isolated agent workspace in a fresh git worktree.
 | `-l, --label <text>` | branch basename | herdr workspace label. |
 | `--no-focus` | (focus) | Create the workspace without switching to it. |
 | `--no-setup` | (run if present) | Skip the repo's committed `.corral/setup.sh`. |
+| `-j, --json` | (off) | Emit a machine-readable spawn result on stdout: workspace id, label, repo, branch, worktree path, pane ids, and whether a setup script gates the agent. The human summary still goes to stderr. |
 
 If the repo commits a `.corral/setup.sh`, spawn chains it before the agent in
 the agent pane (`bash .corral/setup.sh && <agent>`): the agent only starts once
@@ -41,6 +42,7 @@ corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
 corral spawn ~/dev/app --model opus --permission-mode acceptEdits
 corral spawn ~/dev/app --prompt "fix the failing tax tests"   # branch: e.g. agent/fix-failing-tax-tests
 corral spawn ~/dev/app --agent none        # just the worktree + terminals
+corral spawn ~/dev/app --prompt "fix issue #42" --no-focus --json
 ```
 
 ## `corral ls [-j|--json]`
@@ -65,6 +67,78 @@ Alias: `corral attach`.
 ```sh
 corral focus checkout-fix
 ```
+
+## `corral send <workspace> [--] <text...>`
+
+Send a prompt (or any text) to the agent running in a workspace. The text is
+typed into the workspace's agent pane and submitted with Enter.
+
+| Option | Meaning |
+| --- | --- |
+| `--no-enter` | Type the text without submitting it. |
+| `-p, --pane <id>` | Send to a specific pane instead of the workspace's agent pane. |
+
+Use `--` before text that starts with a dash.
+
+```sh
+corral send w4 "run the tests and fix any failures"
+corral send checkout-fix --no-enter "draft, not submitted"
+```
+
+## `corral read <workspace> [options]`
+
+Print the recent output of a workspace's agent pane to stdout (plain text by
+default, so it pipes cleanly).
+
+| Option | Meaning |
+| --- | --- |
+| `-n, --lines <n>` | Number of lines to capture (default: the visible screen). |
+| `-s, --source <src>` | `visible`, `recent` (includes scrollback), or `recent-unwrapped`. |
+| `--ansi` | Keep ANSI colors/styles. |
+| `-p, --pane <id>` | Read a specific pane instead of the workspace's agent pane. |
+
+```sh
+corral read w4 --lines 200 --source recent | tail -40
+```
+
+## `corral wait <workspace> [options]`
+
+Block until a workspace's agent reaches a status (default: `idle`), or until
+its output matches text. Exits `0` when the condition is met, non-zero on
+timeout — so it chains cleanly in scripts.
+
+| Option | Meaning |
+| --- | --- |
+| `-s, --status <s>` | `idle`, `working`, `blocked`, `done`, or `unknown` (default `idle`). |
+| `-m, --match <text>` | Wait for output matching `<text>` instead of a status. |
+| `--regex` | Treat `--match` as a regular expression. |
+| `-t, --timeout <ms>` | Give up after this many milliseconds (default `300000`). |
+| `-p, --pane <id>` | Watch a specific pane instead of the workspace's agent pane. |
+
+A status wait returns as soon as the agent is *currently* in that status —
+right after `corral send`, the agent can still be `idle` for a beat. When that
+matters, wait for `working` first (short timeout), then `idle`:
+
+```sh
+corral send w4 "fix the failing test"
+corral wait w4 --status working --timeout 15000
+corral wait w4 --status idle --timeout 600000
+corral read w4 --lines 100
+```
+
+## `corral mcp`
+
+Run corral as an [MCP](https://modelcontextprotocol.io) server over stdio, so
+an orchestrator agent (e.g. a Claude Code session) can spawn, prompt, watch,
+and tear down corral agents as first-class tools: `corral_spawn`,
+`corral_list`, `corral_send`, `corral_read`, `corral_wait`, `corral_close`.
+
+```sh
+claude mcp add corral -- corral mcp
+```
+
+See [`docs/orchestration.md`](orchestration.md) for the full orchestrator
+workflow.
 
 ## `corral close [workspace] [--force]`
 

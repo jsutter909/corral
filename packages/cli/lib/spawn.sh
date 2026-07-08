@@ -41,6 +41,8 @@ Options:
   -l, --label <text>    Workspace label (default: derived from the branch name)
   --no-focus        Create the workspace without switching focus to it
   --no-setup        Skip the repo's .corral/setup.sh (also: CORRAL_SETUP=0)
+  -j, --json        Emit a machine-readable spawn result on stdout
+                    (workspace, branch, worktree, pane ids)
 
 If the repo commits a .corral/setup.sh, spawn runs it in the agent pane first
 (bash .corral/setup.sh && <agent>) — the agent only starts once setup succeeds.
@@ -51,6 +53,7 @@ Examples:
   corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
   corral spawn ~/dev/app --prompt "fix the failing tax tests"
                                         # branch: e.g. agent/fix-failing-tax-tests
+  corral spawn ~/dev/app --prompt "fix issue #42" --no-focus --json
 EOF
 }
 
@@ -125,7 +128,7 @@ spawn_launch_cmd() {
 
 cmd_spawn() {
   local repo_arg="" branch="" base="$CORRAL_BASE" ratio="$CORRAL_RATIO"
-  local agent="$CORRAL_AGENT" label="" focus=1 setup="$CORRAL_SETUP"
+  local agent="$CORRAL_AGENT" label="" focus=1 setup="$CORRAL_SETUP" as_json=0
   local model="$CORRAL_MODEL" permission_mode="$CORRAL_PERMISSION_MODE"
   local prompt=""
 
@@ -141,6 +144,7 @@ cmd_spawn() {
       -b|--base)    base="${2:?--base needs a value}"; shift 2 ;;
       -r|--ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
       -l|--label)   label="${2:?--label needs a value}"; shift 2 ;;
+      -j|--json)    as_json=1; shift ;;
       --no-focus) focus=0; shift ;;
       --no-setup) setup=0; shift ;;
       --) shift; while [ $# -gt 0 ]; do positional+=("$1"); shift; done ;;
@@ -260,4 +264,16 @@ cmd_spawn() {
   [ -n "$prompt" ] && [ "$agent" != "none" ] && printf '    prompt   %s\n' "$prompt" >&2
   printf '    panes    agent=%s  term-top=%s  term-bottom=%s\n' "$left" "$rtop" "$rbot" >&2
   printf '\n  Tear down when finished:  %scorral close %s%s\n' "$_c_dim" "$ws" "$_c_rst" >&2
+
+  # Machine-readable result on stdout (the summary above went to stderr), so
+  # orchestrators can capture the new workspace/pane ids directly.
+  if [ "$as_json" -eq 1 ]; then
+    jq -n --arg ws "$ws" --arg label "$label" --arg repo "$repo" \
+          --arg branch "$branch" --arg wt "$wt" --arg agent "$agent" \
+          --arg p_agent "$left" --arg p_top "$rtop" --arg p_bot "$rbot" \
+          --argjson setup "$([ "$run_setup" -eq 1 ] && printf 'true' || printf 'false')" \
+      '{workspace: $ws, label: $label, repo: $repo, branch: $branch,
+        worktree: $wt, agent: $agent, setup: $setup,
+        panes: {agent: $p_agent, term_top: $p_top, term_bottom: $p_bot}}'
+  fi
 }
