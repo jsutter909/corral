@@ -68,6 +68,7 @@ load_config() {
   local env_agent="${CORRAL_AGENT-}" env_ratio="${CORRAL_RATIO-}"
   local env_prefix="${CORRAL_BRANCH_PREFIX-}" env_base="${CORRAL_BASE-}"
   local env_worktrees="${CORRAL_WORKTREES_DIR-}"
+  local env_model="${CORRAL_MODEL-}" env_permission_mode="${CORRAL_PERMISSION_MODE-}"
 
   if [ -f "$CORRAL_CONFIG" ]; then
     # shellcheck disable=SC1090
@@ -79,6 +80,8 @@ load_config() {
   if [ -n "$env_prefix" ];    then CORRAL_BRANCH_PREFIX="$env_prefix"; fi
   if [ -n "$env_base" ];      then CORRAL_BASE="$env_base"; fi
   if [ -n "$env_worktrees" ]; then CORRAL_WORKTREES_DIR="$env_worktrees"; fi
+  if [ -n "$env_model" ];           then CORRAL_MODEL="$env_model"; fi
+  if [ -n "$env_permission_mode" ]; then CORRAL_PERMISSION_MODE="$env_permission_mode"; fi
 
   # Built-in defaults for anything still unset.
   : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
@@ -86,6 +89,8 @@ load_config() {
   : "${CORRAL_BRANCH_PREFIX:=agent}"    # prefix for auto-generated branch names
   : "${CORRAL_BASE:=}"                  # base ref for new worktrees ("" = current HEAD)
   : "${CORRAL_WORKTREES_DIR:=$HOME/.herdr/worktrees}"  # where herdr checks out corral's worktrees
+  : "${CORRAL_MODEL:=}"                 # model for the claude agent ("" = Claude's default)
+  : "${CORRAL_PERMISSION_MODE:=}"       # claude permission/edit mode ("" = Claude's default)
 }
 
 # ---------------------------------------------------------------------------
