@@ -82,7 +82,7 @@ load_config() {
 
   # Built-in defaults for anything still unset.
   : "${CORRAL_AGENT:=claude}"           # agent to launch in the left pane (or "none")
-  : "${CORRAL_RATIO:=0.6}"              # left (agent) pane share of width, 0..1
+  : "${CORRAL_RATIO:=0.4}"              # left (agent) pane share of width, 0..1
   : "${CORRAL_BRANCH_PREFIX:=agent}"    # prefix for auto-generated branch names
   : "${CORRAL_BASE:=}"                  # base ref for new worktrees ("" = current HEAD)
   : "${CORRAL_WORKTREES_DIR:=$HOME/.herdr/worktrees}"  # where herdr checks out corral's worktrees

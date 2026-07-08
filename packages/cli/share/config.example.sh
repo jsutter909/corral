@@ -13,7 +13,7 @@
 CORRAL_AGENT=claude
 
 # Agent (left) pane share of the width, 0..1. Higher = wider agent pane.
-CORRAL_RATIO=0.6
+CORRAL_RATIO=0.4
 
 # Prefix for auto-generated branch names: <prefix>/<repo>-<timestamp>.
 CORRAL_BRANCH_PREFIX=agent

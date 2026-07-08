@@ -17,7 +17,7 @@ corral resolves each setting in this order (later wins):
 | Variable | Flag | Default | Meaning |
 | --- | --- | --- | --- |
 | `CORRAL_AGENT` | `--agent` | `claude` | Agent launched in the left pane, or `none`. |
-| `CORRAL_RATIO` | `--ratio` | `0.6` | Agent (left) pane width share, `0..1`. |
+| `CORRAL_RATIO` | `--ratio` | `0.4` | Agent (left) pane width share, `0..1`. |
 | `CORRAL_BRANCH_PREFIX` | — | `agent` | Prefix for auto branch names: `<prefix>/<repo>-<timestamp>`. |
 | `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |
 | `CORRAL_WORKTREES_DIR` | — | `~/.herdr/worktrees` | Where herdr checks out corral's worktrees; corral only ever destroys worktrees under this directory. |
@@ -37,7 +37,7 @@ Or just create it by hand:
 ```sh
 # ~/.config/corral/config.sh
 CORRAL_AGENT=claude
-CORRAL_RATIO=0.6
+CORRAL_RATIO=0.4
 CORRAL_BRANCH_PREFIX=agent
 CORRAL_BASE=main
 ```
