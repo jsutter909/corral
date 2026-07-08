@@ -100,6 +100,20 @@ CORRAL_BASE=main             # base ref for new worktrees ("" = current HEAD)
 See [`docs/configuration.md`](docs/configuration.md) and
 [`packages/cli/share/config.example.sh`](packages/cli/share/config.example.sh).
 
+## oh-my-zsh plugin
+
+Tab completion for every command (including live workspace ids/labels), short
+aliases, `ccd` to hop your shell into an agent's worktree, and an optional
+`corral_prompt_info` prompt segment:
+
+```sh
+ln -s ~/.local/share/corral/packages/omz-plugin \
+      "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/corral"
+# then add corral to plugins=(...) in ~/.zshrc and restart your shell
+```
+
+Full details (including plain-zsh install): [`packages/omz-plugin/README.md`](packages/omz-plugin/README.md).
+
 ## How it works
 
 `corral spawn` is a thin, well-tested wrapper over herdr's socket API:
@@ -117,26 +131,26 @@ Details and the herdr concepts involved: [`docs/architecture.md`](docs/architect
 ```
 corral/
 ├── packages/
-│   └── cli/            # the corral CLI (this is what installs today)
-│       ├── bin/corral  # dispatcher
-│       ├── lib/        # one file per subcommand + common helpers
-│       ├── share/      # config.example.sh
-│       └── test/       # smoke tests
+│   ├── cli/            # the corral CLI (this is what installs today)
+│   │   ├── bin/corral  # dispatcher
+│   │   ├── lib/        # one file per subcommand + common helpers
+│   │   ├── share/      # config.example.sh
+│   │   └── test/       # smoke tests
+│   └── omz-plugin/     # oh-my-zsh plugin: completions, aliases, ccd, prompt
 ├── docs/               # usage, configuration, architecture
 ├── install.sh          # curl-able installer
 └── Makefile            # install / link / lint / test
 ```
 
-The repo is a monorepo on purpose — future tooling (an oh-my-zsh plugin,
-completions, and more) will live alongside the CLI under `packages/`. See
-[`packages/README.md`](packages/README.md) for the plan.
+The repo is a monorepo on purpose — tooling grows alongside the CLI under
+`packages/`. See [`packages/README.md`](packages/README.md) for the plan.
 
 ## Development
 
 ```sh
 make link     # symlink the working tree's launcher into ~/.local/bin
-make test     # smoke tests (no herdr server needed)
-make lint     # shellcheck (if installed)
+make test     # smoke tests + zsh completion tests (no herdr server needed)
+make lint     # shellcheck + zsh -n (if installed)
 make check    # lint + test
 ```
 

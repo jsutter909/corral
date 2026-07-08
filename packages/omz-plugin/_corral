@@ -1,0 +1,185 @@
+#compdef corral ccd
+# Completion for corral — isolated AI-agent workspaces on top of herdr.
+#
+# Lives at the plugin root: oh-my-zsh puts the plugin directory itself on
+# fpath before running compinit, so this file is picked up automatically.
+# Also completes ccd (from corral.plugin.zsh), which takes one workspace.
+#
+# Dev loop: after editing this file in a live shell, reload with
+#   unfunction _corral 2>/dev/null; autoload -Uz _corral
+
+# --- value helpers ----------------------------------------------------------
+
+# Agents accepted by `corral spawn --agent` (any herdr-integrated agent works;
+# these are the documented ones).
+_corral_agents() {
+  local -a agents=(
+    'claude:Claude Code (default)'
+    'codex:OpenAI Codex CLI'
+    'copilot:GitHub Copilot CLI'
+    'droid:Factory Droid'
+    'opencode:opencode'
+    'cursor:Cursor CLI'
+    'none:no agent — blank shell in the left pane'
+  )
+  _describe -t agents 'agent' agents
+}
+
+# Git refs for --base. Pragmatic choice: complete refs of the repo containing
+# the spawn <repo> positional when it has been typed and is a directory,
+# otherwise the current directory's repo. Silently no matches outside a repo.
+# ($line is visible here via dynamic scope from the calling _arguments.)
+_corral_git_refs() {
+  local dir=${line[1]:-.}
+  [[ -d $dir ]] || dir=.
+  local -a refs
+  refs=( ${(f)"$(command git -C $dir for-each-ref \
+    --format='%(refname:short)' refs/heads refs/remotes refs/tags 2>/dev/null)"} )
+  refs=( ${refs:#(*/|)HEAD} )
+  (( $#refs )) || return 1
+  _wanted refs expl 'git ref' compadd -a refs
+}
+
+_corral_new_branch() {
+  _message 'new branch name (default: <prefix>/<repo>-<timestamp>)'
+}
+
+# Active workspaces from `corral ls --json`, offered as both ids and labels,
+# described as "label — branch (status)".
+#
+# * One `corral ls` call per completion invocation; deliberately NOT cached
+#   via _store_cache/zcompcache — workspaces churn constantly and a stale
+#   cache is worse than a ~25ms subprocess.
+# * Degrades silently to "no matches" when the herdr server is down: corral
+#   exits nonzero fast (local check), so no timeout wrapper is needed.
+# * Colons in labels are escaped for _describe, which splits each pair on the
+#   first unescaped colon.
+_corral_workspaces() {
+  local json
+  json="$(command corral ls --json 2>/dev/null)" || return 1
+  [[ $json == \[* ]] || return 1
+
+  local -a rows pairs parts
+  rows=( ${(f)"$(print -r -- "$json" | command jq -r \
+    '.[] | [.workspace, .label, .branch, .status] | @tsv' 2>/dev/null)"} )
+
+  local row ws label branch wstatus   # NB: "status" is read-only in zsh
+  for row in $rows; do
+    parts=( "${(@ps:\t:)row}" )
+    ws=$parts[1] label=$parts[2] branch=$parts[3] wstatus=$parts[4]
+    [[ -n $ws ]] || continue
+    pairs+=( "${ws//:/\\:}:${label} — ${branch} (${wstatus})" )
+    if [[ -n $label && $label != $ws ]]; then
+      pairs+=( "${label//:/\\:}:${ws} — ${branch} (${wstatus})" )
+    fi
+  done
+
+  (( $#pairs )) || return 1
+  _describe -t workspaces 'workspace (id or label)' pairs
+}
+
+# --- subcommands -------------------------------------------------------------
+
+_corral_commands() {
+  local -a cmds=(
+    'spawn:create an isolated agent workspace in a new git worktree'
+    'close:remove an agent'\''s worktree and close its workspace'
+    'ls:list active agent workspaces'
+    'list:list active agent workspaces (alias for ls)'
+    'focus:switch focus to an agent workspace'
+    'attach:switch focus to an agent workspace (alias for focus)'
+    'prune:remove finished/stale agent workspaces'
+    'clean:remove finished/stale agent workspaces (alias for prune)'
+    'version:print the corral version'
+    'help:show help (add a command name for details)'
+  )
+  _describe -t commands 'corral command' cmds
+}
+
+# --- main dispatcher ----------------------------------------------------------
+
+_corral() {
+  # ccd (plugin function) takes a single workspace argument.
+  if [[ $service == ccd ]]; then
+    _arguments '1:workspace:_corral_workspaces'
+    return
+  fi
+
+  local curcontext="$curcontext" state state_descr line ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '(- *)'{-h,--help}'[show help]' \
+    '(- *)'{-V,--version}'[print the corral version]' \
+    '1: :->command' \
+    '*:: :->args' && ret=0
+
+  case $state in
+    command)
+      _corral_commands && ret=0
+      ;;
+    args)
+      local cmd=${line[1]}
+      case $cmd in            # aliases share their target's completion
+        list)   cmd=ls ;;
+        attach) cmd=focus ;;
+        clean)  cmd=prune ;;
+      esac
+      curcontext="${curcontext%:*:*}:corral-${cmd}:"
+      case $cmd in
+        spawn)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show spawn help]' \
+            '--agent[agent to launch in the left pane, or "none"]:agent:_corral_agents' \
+            '--model[model for the Claude agent (claude only)]:model:(opus sonnet haiku)' \
+            '--permission-mode[Claude permission/edit mode (claude only)]:mode:(acceptEdits plan bypassPermissions default)' \
+            '--base[base git ref to branch the worktree from]:git ref:_corral_git_refs' \
+            '--ratio[agent (left) pane share of width]:ratio (0..1):' \
+            '--label[workspace label]:label:' \
+            '--no-focus[create the workspace without switching focus to it]' \
+            '1:repository directory:_directories' \
+            '2::new branch name:_corral_new_branch' \
+            && ret=0
+          ;;
+        close)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show close help]' \
+            '(-f --force)'{-f,--force}'[skip the confirmation prompt]' \
+            '1::workspace:_corral_workspaces' \
+            && ret=0
+          ;;
+        focus)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show focus help]' \
+            '1:workspace:_corral_workspaces' \
+            && ret=0
+          ;;
+        ls)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show ls help]' \
+            '--json[emit machine-readable JSON instead of a table]' \
+            && ret=0
+          ;;
+        prune)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show prune help]' \
+            '--base[branch to test "merged into" against]:git ref:_corral_git_refs' \
+            '--idle[also prune idle workspaces with a clean tree]' \
+            '(-n --dry-run)'{-n,--dry-run}'[show what would be pruned without removing anything]' \
+            '(-f --force)'{-f,--force}'[skip the per-workspace confirmation prompt]' \
+            && ret=0
+          ;;
+        help)
+          _arguments '1::command:_corral_commands' && ret=0
+          ;;
+        version)
+          _message 'no more arguments'
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_corral "$@"
