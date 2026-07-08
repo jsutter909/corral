@@ -54,6 +54,7 @@ corral spawn ~/dev/app                      # new worktree + workspace, launches
 corral spawn ~/dev/app feature/checkout     # name the branch
 corral spawn ~/dev/app --agent codex        # use a different agent
 corral spawn ~/dev/app --base main          # branch from a specific ref
+corral spawn ~/dev/app --prompt "fix tests" # hand the agent an opening prompt
 
 corral ls                                   # see what's running
 corral focus checkout                        # jump to an agent by label or id
