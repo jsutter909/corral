@@ -21,19 +21,19 @@ Arguments:
                     (default: <prefix>/<repo>-<timestamp>)
 
 Options:
-  --agent <name>    Agent to launch in the left pane, or "none" for a blank shell
+  -a, --agent <name>    Agent to launch in the left pane, or "none" for a blank shell
                     (default: $CORRAL_AGENT). Any herdr-integrated agent works:
                     claude, codex, copilot, droid, opencode, cursor, ...
-  --model <name>    Model for the Claude agent (default: ${CORRAL_MODEL:-Claude default}).
+  -m, --model <name>    Model for the Claude agent (default: ${CORRAL_MODEL:-Claude default}).
                     claude agent only.
-  --permission-mode <mode>
+  -P, --permission-mode <mode>
                     Claude permission/edit mode, e.g. acceptEdits, plan
                     (default: ${CORRAL_PERMISSION_MODE:-Claude default}). claude agent only.
-  --prompt <text>   Initial prompt to hand the agent on launch. Passed as the
+  -p, --prompt <text>   Initial prompt to hand the agent on launch. Passed as the
                     agent's first positional argument (ignored for --agent none).
-  --base <ref>      Base ref to branch the worktree from (default: current HEAD)
-  --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
-  --label <text>    Workspace label (default: derived from the branch name)
+  -b, --base <ref>      Base ref to branch the worktree from (default: current HEAD)
+  -r, --ratio <0..1>    Agent (left) pane share of width (default: $CORRAL_RATIO)
+  -l, --label <text>    Workspace label (default: derived from the branch name)
   --no-focus        Create the workspace without switching focus to it
   --no-setup        Skip the repo's .corral/setup.sh (also: CORRAL_SETUP=0)
 
@@ -97,13 +97,13 @@ cmd_spawn() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help) spawn_usage; return 0 ;;
-      --agent)   agent="${2:?--agent needs a value}"; shift 2 ;;
-      --model)   model="${2:?--model needs a value}"; shift 2 ;;
-      --permission-mode) permission_mode="${2:?--permission-mode needs a value}"; shift 2 ;;
-      --prompt)  prompt="${2?--prompt needs a value}"; shift 2 ;;
-      --base)    base="${2:?--base needs a value}"; shift 2 ;;
-      --ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
-      --label)   label="${2:?--label needs a value}"; shift 2 ;;
+      -a|--agent)   agent="${2:?--agent needs a value}"; shift 2 ;;
+      -m|--model)   model="${2:?--model needs a value}"; shift 2 ;;
+      -P|--permission-mode) permission_mode="${2:?--permission-mode needs a value}"; shift 2 ;;
+      -p|--prompt)  prompt="${2?--prompt needs a value}"; shift 2 ;;
+      -b|--base)    base="${2:?--base needs a value}"; shift 2 ;;
+      -r|--ratio)   ratio="${2:?--ratio needs a value}"; shift 2 ;;
+      -l|--label)   label="${2:?--label needs a value}"; shift 2 ;;
       --no-focus) focus=0; shift ;;
       --no-setup) setup=0; shift ;;
       --) shift; while [ $# -gt 0 ]; do positional+=("$1"); shift; done ;;

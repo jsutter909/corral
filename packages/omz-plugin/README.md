@@ -11,7 +11,7 @@ values:
 
 ```text
 corral <TAB>                 # spawn / close / ls / focus / prune / doctor / …
-corral spawn --<TAB>         # --agent --model --prompt --base --ratio --label --no-focus
+corral spawn --<TAB>         # --agent --model --prompt --base --ratio --label --no-focus (short: -a -m -p -b -r -l)
 corral spawn --agent <TAB>   # claude codex copilot droid opencode cursor none
 corral spawn --base <TAB>    # branches of the repo you're in
 corral close <TAB>           # live workspace ids AND labels, with branch + status

@@ -9,7 +9,7 @@ Usage:
   corral ls [--json]
 
 Options:
-  --json   Emit machine-readable JSON instead of a table.
+  -j, --json   Emit machine-readable JSON instead of a table.
 
 Shows every corral-owned workspace: its id, label, git branch, agent status,
 and worktree path. Table rows go to stdout (the header goes to stderr), so
@@ -22,7 +22,7 @@ cmd_ls() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help) ls_usage; return 0 ;;
-      --json) as_json=1; shift ;;
+      -j|--json) as_json=1; shift ;;
       -*) die "unknown option: $1 (try 'corral ls --help')" ;;
       *)  die "unexpected argument: $1" ;;
     esac

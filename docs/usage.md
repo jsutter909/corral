@@ -17,13 +17,13 @@ Create an isolated agent workspace in a fresh git worktree.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `--agent <name>` | `claude` | Agent to launch in the left pane, or `none` for a blank shell. Any herdr-integrated agent works (`claude`, `codex`, `copilot`, `droid`, `opencode`, `cursor`, …). |
-| `--model <name>` | Claude's default | Model for the Claude agent. Applies to the `claude` agent only; ignored (with a warning) for others. |
-| `--permission-mode <mode>` | Claude's default | Claude permission/edit mode, e.g. `acceptEdits`, `plan`. `claude` agent only. |
-| `--prompt <text>` | (none) | Initial prompt handed to the agent on launch, as its first positional argument. Ignored (with a warning) for `--agent none`. |
-| `--base <ref>` | current HEAD | Base ref the new worktree branches from. |
-| `--ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
-| `--label <text>` | branch basename | herdr workspace label. |
+| `-a, --agent <name>` | `claude` | Agent to launch in the left pane, or `none` for a blank shell. Any herdr-integrated agent works (`claude`, `codex`, `copilot`, `droid`, `opencode`, `cursor`, …). |
+| `-m, --model <name>` | Claude's default | Model for the Claude agent. Applies to the `claude` agent only; ignored (with a warning) for others. |
+| `-P, --permission-mode <mode>` | Claude's default | Claude permission/edit mode, e.g. `acceptEdits`, `plan`. `claude` agent only. |
+| `-p, --prompt <text>` | (none) | Initial prompt handed to the agent on launch, as its first positional argument. Ignored (with a warning) for `--agent none`. |
+| `-b, --base <ref>` | current HEAD | Base ref the new worktree branches from. |
+| `-r, --ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
+| `-l, --label <text>` | branch basename | herdr workspace label. |
 | `--no-focus` | (focus) | Create the workspace without switching to it. |
 | `--no-setup` | (run if present) | Skip the repo's committed `.corral/setup.sh`. |
 
@@ -43,13 +43,13 @@ corral spawn ~/dev/app --prompt "fix the failing tax tests"
 corral spawn ~/dev/app --agent none        # just the worktree + terminals
 ```
 
-## `corral ls [--json]`
+## `corral ls [-j|--json]`
 
 List active agent workspaces (corral-owned worktrees only — your primary
 checkouts and hand-made worktrees are never listed). Columns: workspace id,
 label, git branch, agent status, worktree path. Data rows go to stdout and the
-header to stderr, so plain `corral ls` pipes cleanly; `--json` emits an array
-for scripting.
+header to stderr, so plain `corral ls` pipes cleanly; `-j`/`--json` emits an
+array for scripting.
 
 ```sh
 corral ls
@@ -93,8 +93,8 @@ This guarantees prune never discards unmerged or uncommitted work.
 
 | Option | Meaning |
 | --- | --- |
-| `--base <ref>` | Branch to test "merged into" (default: `origin/HEAD`, else `main`, else `master`; if none exist the merged check is skipped rather than guessed). |
-| `--idle` | Also prune workspaces with a clean tree whose agent is idle, even if the branch isn't merged. |
+| `-b`, `--base <ref>` | Branch to test "merged into" (default: `origin/HEAD`, else `main`, else `master`; if none exist the merged check is skipped rather than guessed). |
+| `-i`, `--idle` | Also prune workspaces with a clean tree whose agent is idle, even if the branch isn't merged. |
 | `-n`, `--dry-run` | Show what would be pruned; remove nothing. |
 | `-f`, `--force` | Skip the per-workspace confirmation. |
 
