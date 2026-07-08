@@ -19,7 +19,7 @@ Create an isolated agent workspace in a fresh git worktree.
 | --- | --- | --- |
 | `--agent <name>` | `claude` | Agent to launch in the left pane, or `none` for a blank shell. Any herdr-integrated agent works (`claude`, `codex`, `copilot`, `droid`, `opencode`, `cursor`, …). |
 | `--base <ref>` | current HEAD | Base ref the new worktree branches from. |
-| `--ratio <0..1>` | `0.6` | Agent (left) pane share of the width. |
+| `--ratio <0..1>` | `0.4` | Agent (left) pane share of the width. |
 | `--label <text>` | branch basename | herdr workspace label. |
 | `--no-focus` | (focus) | Create the workspace without switching to it. |
 

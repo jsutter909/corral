@@ -29,8 +29,8 @@ herdr pane run <root> <agent>                            # launch the agent
 herdr workspace focus <workspace>                        # jump to it
 ```
 
-`--ratio` is the **left** (agent) pane's share of the width, so `0.6` gives the
-agent 60% and the two terminals 40%.
+`--ratio` is the **left** (agent) pane's share of the width, so the default
+`0.4` gives the agent 40% and the two terminals 60%.
 
 ## The isolation guarantee
 
