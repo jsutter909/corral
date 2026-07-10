@@ -9,7 +9,7 @@ from typing import Dict
 from .. import remote, ui
 from ..agents import sh_quote
 from ..cli import Command, Example, Option
-from ..herdr import require_deps
+from ..herdr import Herdr, require_deps
 from ..ui import CorralError
 from . import Context
 
@@ -17,30 +17,42 @@ from . import Context
 # is idempotent — a second start won't stack a second monitor.
 MONITOR_LABEL = "monitor"
 
+# corral runs in its own persistent herdr session, kept separate from your
+# default one. `herdr --session corral` uses it if it's already open and creates
+# it otherwise, so `corral start` always lands on the same session.
+SESSION_NAME = "corral"
+
 SPEC = Command(
     name="start",
     summary="start a herdr session (local or remote) with the monitor running.",
     shell_alias="cst",
     description=(
-        "One command to bring up a herdr session and land you in it. corral makes\n"
-        "sure a herdr server is running, parks 'corral monitor' in its own\n"
-        "workspace so the dashboard is always up, then attaches the herdr TUI\n"
-        "(this process is replaced by herdr).\n"
+        "One command to bring up corral's herdr session and land you in it. corral\n"
+        "runs in its own persistent 'corral' session (separate from your default\n"
+        "one); it starts that session if needed, reuses it if it's already open,\n"
+        "parks 'corral monitor' in a workspace there so the dashboard is always up,\n"
+        "then attaches the herdr TUI (this process is replaced by herdr).\n"
         "\n"
         "With a remote target — from --remote or CORRAL_REMOTE, same syntax as\n"
         "'herdr --remote' — corral first bootstraps the other machine over SSH:\n"
         "installs corral there if missing, copies this config across (minus\n"
-        "CORRAL_REMOTE), starts the monitor on the remote, and forwards its port\n"
-        "back with 'ssh -L' so the dashboard is reachable at http://localhost:<port>\n"
-        "here. Then it attaches with 'herdr --remote <target>'."
+        "CORRAL_REMOTE), starts the corral session + monitor on the remote, and\n"
+        "forwards its port back (auto-reconnecting via autossh when installed) so the\n"
+        "dashboard is reachable at http://localhost:<port> here. Then it attaches with\n"
+        "'herdr --remote <target> --session corral'. Because the session is\n"
+        "persistent, closing your laptop and reopening it just re-attaches — the\n"
+        "remote work keeps running."
     ),
     doc=(
-        "Bring up a herdr session and drop you into it, with `corral monitor` already\n"
-        "running in its own `monitor` workspace (idempotent — a second `start` reuses\n"
-        "it). corral starts a herdr server if one isn't reachable, then replaces itself\n"
-        "with the herdr client (`exec herdr`).\n"
+        "Bring up corral's herdr session and drop you into it, with `corral monitor`\n"
+        "already running in a `monitor` workspace (idempotent — a second `start` reuses\n"
+        "it). corral keeps its own persistent **`corral`** session, separate from your\n"
+        "default herdr session: `herdr --session corral` starts it if needed and\n"
+        "attaches the existing one otherwise, so `start` always lands on the same\n"
+        "session and the monitor survives disconnects.\n"
         "\n"
-        "**Local** (no target) — server + monitor here, then `herdr`.\n"
+        "**Local** (no target) — corral session + monitor here, then\n"
+        "`herdr --session corral`.\n"
         "\n"
         "**Remote** (`--remote <target>` or `CORRAL_REMOTE`, same syntax as\n"
         "`herdr --remote`) — corral bootstraps the target over SSH first:\n"
@@ -48,10 +60,12 @@ SPEC = Command(
         "1. installs corral there if it's missing (the `install.sh` one-liner);\n"
         "2. copies this machine's config across, with `CORRAL_REMOTE` stripped so the\n"
         "   remote doesn't point at a further host;\n"
-        "3. starts the herdr server + monitor on the remote (`corral start --no-attach`);\n"
-        "4. forwards the monitor port back with `ssh -L`, so the dashboard is reachable\n"
-        "   at `http://localhost:<port>` locally;\n"
-        "5. attaches with `herdr --remote <target>`.\n"
+        "3. starts the corral session + monitor on the remote (`corral start --no-attach`);\n"
+        "4. forwards the monitor port back so the dashboard is reachable at\n"
+        "   `http://localhost:<port>` locally — via `autossh` when it's installed, so the\n"
+        "   tunnel auto-reconnects across sleep/roaming (plain `ssh` with keepalives\n"
+        "   otherwise);\n"
+        "5. attaches with `herdr --remote <target> --session corral`.\n"
         "\n"
         "Each step past the attach has a `--no-*` opt-out. `--no-attach` does the setup\n"
         "for **this** machine and stops before attaching (it's also how corral seeds the\n"
@@ -60,8 +74,10 @@ SPEC = Command(
         "the remote path."
     ),
     epilog=(
-        "The 'ssh -L' port forward daemonizes itself and keeps running after herdr\n"
-        "exits; kill it by hand (e.g. pkill -f 'ssh -L <port>') when you're done."
+        "The monitor-port forward daemonizes itself and keeps running after herdr\n"
+        "exits; kill it by hand (e.g. pkill -f 'ssh -L <port>', or 'pkill autossh')\n"
+        "when you're done. Install 'autossh' for a forward that auto-reconnects after\n"
+        "your laptop sleeps or changes networks."
     ),
     options=(
         Option(
@@ -139,7 +155,7 @@ def _seed_monitor(ctx: Context, dry_run: bool) -> None:
     port = _monitor_port(ctx)
     launch = f"corral monitor --host {sh_quote(host)} --port {sh_quote(str(port))}"
     if dry_run:
-        ui.info(f"  herdr workspace create --label {MONITOR_LABEL}")
+        ui.info(f"  herdr workspace create --label {MONITOR_LABEL}   # in the '{SESSION_NAME}' session")
         ui.info(f"  herdr pane run <root> {launch}")
         return
     if ctx.herdr.has_workspace_label(MONITOR_LABEL):
@@ -150,26 +166,30 @@ def _seed_monitor(ctx: Context, dry_run: bool) -> None:
     ui.ok(f"monitor on {ui.C.bold}http://{host}:{port}{ui.C.reset} (workspace '{MONITOR_LABEL}')")
 
 
-def _ensure_server(ctx: Context, dry_run: bool) -> None:
-    if dry_run:
-        ui.info("  herdr server  # only if one isn't already running")
-        return
-    ctx.herdr.start_server_detached()
-
-
 def _seed_local(ctx: Context, no_monitor: bool, dry_run: bool) -> None:
-    _ensure_server(ctx, dry_run)
+    """Bring up the corral session's server on THIS machine and seed the monitor
+    into it. Reused verbatim on the remote (via `corral start --no-attach`)."""
+    if dry_run:
+        ui.info(f"  herdr --session {SESSION_NAME} server   # only if it isn't already running")
+        if not no_monitor:
+            _seed_monitor(ctx, dry_run=True)
+        return
+    if ctx.herdr.session_running(SESSION_NAME):
+        ui.info(f"herdr session '{SESSION_NAME}' already running — reusing it")
+    socket = ctx.herdr.ensure_session_server(SESSION_NAME)
     if not no_monitor:
-        _seed_monitor(ctx, dry_run)
+        # Seed into the corral session's own server (its socket), not the default.
+        seed_ctx = Context(settings=ctx.settings, herdr=Herdr(socket_path=socket))
+        _seed_monitor(seed_ctx, dry_run=False)
 
 
 def _start_local(ctx: Context, no_monitor: bool, dry_run: bool) -> int:
     _seed_local(ctx, no_monitor, dry_run)
     if dry_run:
-        ui.info("  exec herdr")
+        ui.info(f"  exec herdr --session {SESSION_NAME}")
         return 0
-    ui.info("attaching herdr session…")
-    _attach()
+    ui.info(f"attaching herdr session '{SESSION_NAME}'…")
+    _attach("--session", SESSION_NAME)
     return 0  # unreachable after exec
 
 
@@ -207,10 +227,10 @@ def _start_remote(
         remote.forward_port(target, _monitor_port(ctx), dry_run)
 
     if dry_run:
-        ui.info(f"  exec herdr --remote {target}")
+        ui.info(f"  exec herdr --remote {target} --session {SESSION_NAME}")
         return 0
-    ui.info(f"attaching herdr --remote {target}…")
-    _attach("--remote", target)
+    ui.info(f"attaching herdr --remote {target} (session '{SESSION_NAME}')…")
+    _attach("--remote", target, "--session", SESSION_NAME)
     return 0  # unreachable after exec
 
 

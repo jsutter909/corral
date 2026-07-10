@@ -31,11 +31,20 @@ class BuilderTests(unittest.TestCase):
             'mkdir -p "$HOME/.config/corral" && cat > "$HOME/.config/corral/config.sh"',
         )
 
-    def test_forward_args(self):
-        self.assertEqual(
-            remote.forward_args("devbox", 8477),
-            ["ssh", "-L", "8477:127.0.0.1:8477", "-N", "-f", "devbox"],
-        )
+    def test_forward_args_plain_ssh(self):
+        argv = remote.forward_args("devbox", 8477, use_autossh=False)
+        self.assertEqual(argv[0], "ssh")
+        self.assertIn("-L", argv)
+        self.assertIn("8477:127.0.0.1:8477", argv)
+        self.assertIn("ServerAliveInterval=15", argv)
+        self.assertEqual(argv[-1], "devbox")
+
+    def test_forward_args_autossh_autoreconnects(self):
+        argv = remote.forward_args("devbox", 8477, use_autossh=True)
+        self.assertEqual(argv[:3], ["autossh", "-M", "0"])
+        self.assertIn("8477:127.0.0.1:8477", argv)
+        self.assertIn("ServerAliveInterval=15", argv)
+        self.assertEqual(argv[-1], "devbox")
 
     def test_seed_command(self):
         self.assertEqual(remote.seed_command(), "corral start --no-attach")

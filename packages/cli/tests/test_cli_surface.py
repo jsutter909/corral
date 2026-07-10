@@ -77,8 +77,9 @@ class ExitCodeTests(unittest.TestCase):
     def test_start_dry_run_needs_no_herdr(self):
         # --dry-run prints the plan and exits 0 without touching herdr or ssh.
         proc = self.assert_exit(0, "start", "--remote", "devbox", "--dry-run")
-        self.assertIn("ssh -L 8477:127.0.0.1:8477 -N -f devbox", proc.stdout + proc.stderr)
-        self.assertIn("exec herdr --remote devbox", proc.stdout + proc.stderr)
+        out = proc.stdout + proc.stderr
+        self.assertIn("8477:127.0.0.1:8477", out)  # monitor-port forward
+        self.assertIn("exec herdr --remote devbox --session corral", out)
 
     def test_ratio_is_validated_before_any_herdr_call(self):
         proc = self.assert_exit(1, "spawn", ".", "--ratio", "1.5")

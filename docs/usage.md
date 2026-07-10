@@ -10,12 +10,15 @@ Every command also prints this via `corral <command> --help`.
 
 ## `corral start [options]`
 
-Bring up a herdr session and drop you into it, with `corral monitor` already
-running in its own `monitor` workspace (idempotent — a second `start` reuses
-it). corral starts a herdr server if one isn't reachable, then replaces itself
-with the herdr client (`exec herdr`).
+Bring up corral's herdr session and drop you into it, with `corral monitor`
+already running in a `monitor` workspace (idempotent — a second `start` reuses
+it). corral keeps its own persistent **`corral`** session, separate from your
+default herdr session: `herdr --session corral` starts it if needed and
+attaches the existing one otherwise, so `start` always lands on the same
+session and the monitor survives disconnects.
 
-**Local** (no target) — server + monitor here, then `herdr`.
+**Local** (no target) — corral session + monitor here, then
+`herdr --session corral`.
 
 **Remote** (`--remote <target>` or `CORRAL_REMOTE`, same syntax as
 `herdr --remote`) — corral bootstraps the target over SSH first:
@@ -23,10 +26,12 @@ with the herdr client (`exec herdr`).
 1. installs corral there if it's missing (the `install.sh` one-liner);
 2. copies this machine's config across, with `CORRAL_REMOTE` stripped so the
    remote doesn't point at a further host;
-3. starts the herdr server + monitor on the remote (`corral start --no-attach`);
-4. forwards the monitor port back with `ssh -L`, so the dashboard is reachable
-   at `http://localhost:<port>` locally;
-5. attaches with `herdr --remote <target>`.
+3. starts the corral session + monitor on the remote (`corral start --no-attach`);
+4. forwards the monitor port back so the dashboard is reachable at
+   `http://localhost:<port>` locally — via `autossh` when it's installed, so the
+   tunnel auto-reconnects across sleep/roaming (plain `ssh` with keepalives
+   otherwise);
+5. attaches with `herdr --remote <target> --session corral`.
 
 Each step past the attach has a `--no-*` opt-out. `--no-attach` does the setup
 for **this** machine and stops before attaching (it's also how corral seeds the

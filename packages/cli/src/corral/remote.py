@@ -9,12 +9,23 @@ warn rather than abort, matching what the user opted into), and honor
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
+import shutil
 import subprocess
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from . import ui
+
+# SSH keepalives so a dropped connection (laptop sleep, network change) is
+# noticed within ~45s instead of hanging, and the forward fails loudly rather
+# than silently binding nothing.
+KEEPALIVE_OPTS = [
+    "-o", "ServerAliveInterval=15",
+    "-o", "ServerAliveCountMax=3",
+    "-o", "ExitOnForwardFailure=yes",
+]
 
 # The one-liner documented in install.sh / README, run over ssh when the remote
 # has no corral yet. `command -v` short-circuits so an existing install is left
@@ -65,10 +76,18 @@ def seed_command() -> str:
     return " ".join(SEED_ARGS)
 
 
-def forward_args(target: str, port: int) -> List[str]:
-    """`ssh -L <port>:127.0.0.1:<port> -N -f <target>` — background-forward the
-    monitor port so the remote dashboard is reachable at localhost:<port>."""
-    return ["ssh", "-L", f"{port}:127.0.0.1:{port}", "-N", "-f", target]
+def forward_args(target: str, port: int, use_autossh: bool = False) -> List[str]:
+    """Background-forward the monitor port so the remote dashboard is reachable
+    at localhost:<port>.
+
+    With autossh (`use_autossh`) the tunnel auto-reconnects across network drops
+    and laptop sleep; `-M 0` tells autossh to lean on the ssh keepalives above
+    for liveness rather than its own monitoring port. Plain ssh is the fallback
+    when autossh isn't installed (keepalives only — no auto-reconnect)."""
+    spec = f"{port}:127.0.0.1:{port}"
+    if use_autossh:
+        return ["autossh", "-M", "0", "-f", "-N", *KEEPALIVE_OPTS, "-L", spec, target]
+    return ["ssh", "-f", "-N", *KEEPALIVE_OPTS, "-L", spec, target]
 
 
 def filter_config(text: str) -> str:
@@ -128,23 +147,34 @@ def seed_monitor_remote(target: str, dry_run: bool = False) -> bool:
 
 
 def forward_port(target: str, port: int, dry_run: bool = False) -> bool:
-    """Background-forward the monitor port from the remote to localhost."""
-    argv = forward_args(target, port)
+    """Background-forward the monitor port from the remote to localhost, with
+    auto-reconnect via autossh when it's installed."""
+    use_autossh = shutil.which("autossh") is not None
+    argv = forward_args(target, port, use_autossh)
+    how = "auto-reconnect via autossh" if use_autossh else "ssh keepalive, no auto-reconnect"
     if dry_run:
-        _show(argv, f"forward monitor port -> http://localhost:{port}")
+        _show(argv, f"forward monitor port -> http://localhost:{port} ({how})")
         return True
-    if not _run(argv):
+    # AUTOSSH_GATETIME=0 lets autossh keep retrying even if the first connection
+    # fails fast — the seamless-across-sleep behavior we want.
+    env = dict(os.environ, AUTOSSH_GATETIME="0") if use_autossh else None
+    if not _run(argv, env=env):
         ui.warn(
             f"could not forward the monitor port (is localhost:{port} already forwarded?)"
         )
         return False
+    if not use_autossh:
+        ui.info(
+            "  install 'autossh' for a monitor forward that auto-reconnects "
+            "after sleep/roaming"
+        )
     return True
 
 
-def _run(argv: List[str], input_text: Optional[str] = None) -> bool:
+def _run(argv: List[str], input_text: Optional[str] = None, env: Optional[Dict[str, str]] = None) -> bool:
     """Run argv, streaming its stderr through; True on exit 0."""
     try:
-        proc = subprocess.run(argv, input=input_text, text=True)
+        proc = subprocess.run(argv, input=input_text, text=True, env=env)
     except OSError:
         return False
     return proc.returncode == 0
