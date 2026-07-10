@@ -43,7 +43,7 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(0, "version")
         self.assert_exit(0, "-V")
         for cmd in (
-            "spawn", "close", "ls", "focus", "open", "ide",
+            "start", "spawn", "close", "ls", "focus", "open", "ide",
             "prune", "resource", "res", "monitor", "ui", "doctor",
         ):
             self.assert_exit(0, cmd, "--help")
@@ -71,6 +71,14 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(1, "monitor", "--port", "abc")  # non-numeric port
         self.assert_exit(1, "monitor", "--port", "99999")  # out of range
         self.assert_exit(1, "monitor", "--bogus")
+        self.assert_exit(1, "start", "--bogus")  # unknown flag
+        self.assert_exit(1, "start", "--remote")  # missing value
+
+    def test_start_dry_run_needs_no_herdr(self):
+        # --dry-run prints the plan and exits 0 without touching herdr or ssh.
+        proc = self.assert_exit(0, "start", "--remote", "devbox", "--dry-run")
+        self.assertIn("ssh -L 8477:127.0.0.1:8477 -N -f devbox", proc.stdout + proc.stderr)
+        self.assertIn("exec herdr --remote devbox", proc.stdout + proc.stderr)
 
     def test_ratio_is_validated_before_any_herdr_call(self):
         proc = self.assert_exit(1, "spawn", ".", "--ratio", "1.5")

@@ -51,6 +51,13 @@ CORRAL_RATIO=0.4
 # hostname. Override per-run with: corral open <workspace> --host <host>
 # CORRAL_SSH_HOST=
 
+# SSH target 'corral start' attaches to, same syntax as herdr --remote:
+# a Host alias in your ~/.ssh/config, or user@host. When set, 'corral start'
+# installs corral on that machine, copies this config there, forwards the
+# monitor port back with ssh -L, and attaches with herdr --remote. Empty =
+# run herdr on this machine. Override per-run with: corral start --remote <target>
+# CORRAL_REMOTE=
+
 # Prefix for auto-generated branch names: <prefix>/<repo>-<timestamp>.
 CORRAL_BRANCH_PREFIX=agent
 

@@ -12,7 +12,8 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from typing import Dict, List, Optional
+import time
+from typing import Dict, List, Optional, Tuple
 
 from .ui import CorralError
 from .workspaces import Workspace, WorktreeCreation
@@ -90,6 +91,34 @@ class Herdr:
                 "'herdr --remote <target>')."
             )
 
+    def start_server_detached(self, timeout: float = 10.0) -> None:
+        """Start a headless herdr server and wait until it answers.
+
+        Launched in its own session so it outlives this process (which will
+        shortly exec the herdr client). Raises CorralError if the server never
+        becomes reachable within `timeout` seconds.
+        """
+        if self.server_reachable():
+            return
+        try:
+            subprocess.Popen(
+                [self.exe, "server"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            raise CorralError(f"could not start herdr server: {exc}") from None
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.server_reachable():
+                return
+            time.sleep(0.2)
+        raise CorralError(
+            f"herdr server did not come up within {timeout:g}s (try running 'herdr' by hand)"
+        )
+
     # -- workspaces ----------------------------------------------------------
 
     def workspace_list(self) -> List[Workspace]:
@@ -103,6 +132,22 @@ class Herdr:
 
     def workspace_focus(self, workspace_id: str) -> None:
         self.call("workspace", "focus", workspace_id)
+
+    def workspace_create(self, label: str, cwd: str = "") -> Tuple[str, str]:
+        """Create a plain (worktree-less) workspace; return (workspace_id,
+        root_pane_id)."""
+        args = ["workspace", "create", "--label", label, "--no-focus"]
+        if cwd:
+            args += ["--cwd", cwd]
+        data = self.call(*args)
+        return (
+            self._get(data, "result.workspace.workspace_id"),
+            self._get(data, "result.root_pane.pane_id"),
+        )
+
+    def has_workspace_label(self, label: str) -> bool:
+        """True if any workspace already carries this label (idempotency check)."""
+        return any(ws.label == label for ws in self.workspace_list())
 
     def current_workspace(self) -> str:
         """Workspace id of the pane invoking corral; '' outside herdr."""

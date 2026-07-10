@@ -8,6 +8,51 @@
 
 Every command also prints this via `corral <command> --help`.
 
+## `corral start [options]`
+
+Bring up a herdr session and drop you into it, with `corral monitor` already
+running in its own `monitor` workspace (idempotent — a second `start` reuses
+it). corral starts a herdr server if one isn't reachable, then replaces itself
+with the herdr client (`exec herdr`).
+
+**Local** (no target) — server + monitor here, then `herdr`.
+
+**Remote** (`--remote <target>` or `CORRAL_REMOTE`, same syntax as
+`herdr --remote`) — corral bootstraps the target over SSH first:
+
+1. installs corral there if it's missing (the `install.sh` one-liner);
+2. copies this machine's config across, with `CORRAL_REMOTE` stripped so the
+   remote doesn't point at a further host;
+3. starts the herdr server + monitor on the remote (`corral start --no-attach`);
+4. forwards the monitor port back with `ssh -L`, so the dashboard is reachable
+   at `http://localhost:<port>` locally;
+5. attaches with `herdr --remote <target>`.
+
+Each step past the attach has a `--no-*` opt-out. `--no-attach` does the setup
+for **this** machine and stops before attaching (it's also how corral seeds the
+remote). `--dry-run` prints every command it would run — install, copy, seed,
+forward, attach — without touching anything, which is the safe way to inspect
+the remote path.
+
+**Options**
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-r`, `--remote` `<target>` | `` (local — this machine) | SSH target to attach to (same syntax as `herdr --remote`). |
+| `--no-attach` | — | Set up this machine's server + monitor without attaching the herdr client. |
+| `--no-monitor` | — | Skip starting `corral monitor`. |
+| `--no-install` | — | Remote only: skip installing corral on the target. |
+| `--no-config-copy` | — | Remote only: skip copying this machine's config to the target. |
+| `--no-forward` | — | Remote only: skip the `ssh -L` monitor-port forward. |
+| `--dry-run` | — | Print every command `start` would run (including the attach) without executing. |
+
+```sh
+corral start                             # local herdr + monitor, then attach
+corral start --remote devbox             # bootstrap + attach devbox over SSH
+corral start --no-attach                 # just bring up the server + monitor
+corral start --remote devbox --dry-run   # show what it would do
+```
+
 ## `corral spawn <repo> [branch] [options]`
 
 Create an isolated agent workspace in a fresh git worktree.

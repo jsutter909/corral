@@ -32,6 +32,7 @@ corral resolves each setting in this order (later wins):
 | `CORRAL_CLEANUP` | `--no-cleanup` | `1` | Run a worktree's `.corral/cleanup.sh` before removing it on close/prune (`0` = never). |
 | `CORRAL_IDE` | `--ide` | `vscode` | IDE opened by `corral open`: `vscode` or `cursor`. |
 | `CORRAL_SSH_HOST` | `--host` | `` (this machine's hostname) | SSH host in the Remote-SSH links `corral open` prints for remote (`herdr --remote`) sessions; must match a `Host` entry in your **local** `~/.ssh/config`. |
+| `CORRAL_REMOTE` | `--remote` | `` (local — this machine) | SSH target `corral start` attaches to, same syntax as `herdr --remote` (a `Host` alias in your `~/.ssh/config`, or `user@host`). Empty runs herdr on this machine. |
 | `CORRAL_BRANCH_PREFIX` | — | `agent` | Prefix for auto branch names: `<prefix>/<repo>-<timestamp>`. |
 | `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |
 | `CORRAL_WORKTREES_DIR` | — | `~/.herdr/worktrees` | Where herdr checks out corral's worktrees; corral only ever destroys worktrees under this directory. |
