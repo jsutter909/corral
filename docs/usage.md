@@ -72,7 +72,7 @@ setup succeeds, and a failure stays visible in the pane. See
 | Arg | Meaning |
 | --- | --- |
 | `<repo>` | Any path inside the git repo to branch from (e.g. `~/dev/app` or `.`). corral resolves it to the repo root. |
-| `[branch]` | Branch for the worktree. A new name is created; a branch that already exists — locally, or only on a remote (`origin/feature/x`) — is checked out into the worktree instead (handy for an open PR), and a remote branch gets a local tracking branch of the same name. The worktree and its workspace label are named after the branch. Default: with `--prompt`, `<prefix>/<name>` where `<name>` is generated from the prompt by the `claude` CLI (falling back to slugged prompt text, with a numeric suffix if the branch already exists); otherwise `<prefix>/<repo>-<timestamp>`. |
+| `[branch]` | Branch for the worktree. A new name is created; a branch that already exists — locally, or only on a remote (`origin/feature/x`, or just `feature/x`) — is checked out into the worktree instead (handy for an open PR), and a remote branch gets a local tracking branch of the same name. spawn fetches first, so a freshly pushed branch resolves by bare name without the `origin/` prefix. The worktree and its workspace label are named after the branch. Default: with `--prompt`, `<prefix>/<name>` where `<name>` is generated from the prompt by the `claude` CLI (falling back to slugged prompt text, with a numeric suffix if the branch already exists); otherwise `<prefix>/<repo>-<timestamp>`. |
 
 **Options**
 

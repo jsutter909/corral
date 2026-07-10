@@ -95,6 +95,34 @@ def _remote_ref_exists(repo: str, remote: str, branch: str) -> bool:
     return proc.returncode == 0
 
 
+def fetch_branch(repo: str, branch: str) -> str:
+    """Best-effort fetch so a not-yet-fetched remote branch resolves without
+    the caller having run `git fetch` first. Returns the remote-tracking ref
+    it populated (e.g. ``origin/feature/x``), or '' when the branch isn't on
+    any remote (or there are none). Never raises — offline stays usable.
+
+    Accepts a bare name (tried against each remote, origin first) or a name
+    already qualified with its remote (``origin/feature/x``).
+    """
+    rems = remotes(repo)
+    if not rems:
+        return ""
+    # Qualified as <remote>/<name>? Fetch just that ref from that remote.
+    for r in rems:
+        prefix = f"{r}/"
+        if branch.startswith(prefix):
+            name = branch[len(prefix):]
+            _run(["-C", repo, "fetch", "--quiet", r, name])
+            return f"{r}/{name}" if _remote_ref_exists(repo, r, name) else ""
+    # Bare name: try each remote (origin first), stop once one lands the ref.
+    ordered = (["origin"] if "origin" in rems else []) + [r for r in rems if r != "origin"]
+    for r in ordered:
+        _run(["-C", repo, "fetch", "--quiet", r, branch])
+        if _remote_ref_exists(repo, r, branch):
+            return f"{r}/{branch}"
+    return ""
+
+
 def has_uncommitted_changes(worktree: str) -> bool:
     proc = _run(["status", "--porcelain"], cwd=worktree)
     return proc.returncode != 0 or bool(proc.stdout.strip())

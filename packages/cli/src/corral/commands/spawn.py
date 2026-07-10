@@ -66,9 +66,11 @@ SPEC = Command(
             doc=(
                 "Branch for the worktree. A new name is created; a branch that "
                 "already exists — locally, or only on a remote "
-                "(`origin/feature/x`) — is checked out into the worktree "
-                "instead (handy for an open PR), and a remote branch gets a "
-                "local tracking branch of the same name. The worktree and its "
+                "(`origin/feature/x`, or just `feature/x`) — is checked out "
+                "into the worktree instead (handy for an open PR), and a remote "
+                "branch gets a local tracking branch of the same name. spawn "
+                "fetches first, so a freshly pushed branch resolves by bare "
+                "name without the `origin/` prefix. The worktree and its "
                 "workspace label are named after the branch. Default: with "
                 "`--prompt`, `<prefix>/<name>` where `<name>` is generated from "
                 "the prompt by the `claude` CLI (falling back to slugged prompt "
@@ -258,7 +260,13 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
                 ui.warn(f"branch '{branch}' already exists; ignoring --base {base}")
                 base = ""
         else:
+            # Not a local branch. It may live on a remote we haven't fetched
+            # yet (a freshly pushed PR branch) — fetch it so a bare name
+            # resolves without the origin/ prefix, then look again.
             remote = gitutil.remote_ref(repo, branch)
+            if not remote:
+                ui.info(f"fetching to check for an existing '{branch}'…")
+                remote = gitutil.fetch_branch(repo, branch)
             if remote:
                 # Create a local branch of the same name from the remote ref;
                 # git sets up tracking so the agent's push/pull just work. If

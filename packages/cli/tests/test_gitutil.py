@@ -57,5 +57,44 @@ class RemoteRefTests(unittest.TestCase):
         self.assertEqual(gitutil.remotes(self.repo), ["origin"])
 
 
+class FetchBranchTests(unittest.TestCase):
+    """fetch_branch populates the remote-tracking ref for a branch pushed to
+    the remote *after* the clone, so a bare name resolves without a manual
+    fetch. Exercised against real repos."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        root = self._tmp.name
+        self.remote = os.path.join(root, "remote")
+        self.work = os.path.join(root, "work")
+        self.repo = os.path.join(root, "clone")
+        _git(root, "init", "--quiet", "--bare", "remote")
+        _git(root, "clone", "--quiet", self.remote, "work")
+        _git(self.work, "config", "user.email", "t@example.com")
+        _git(self.work, "config", "user.name", "t")
+        _git(self.work, "commit", "--quiet", "--allow-empty", "-m", "init")
+        _git(self.work, "push", "--quiet", "origin", "HEAD:main")
+        _git(root, "clone", "--quiet", self.remote, "clone")
+        # A branch pushed to the remote only AFTER the clone — unknown locally.
+        _git(self.work, "branch", "feature/pr-42")
+        _git(self.work, "push", "--quiet", "origin", "feature/pr-42")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_unfetched_branch_is_not_visible_until_fetch(self):
+        self.assertEqual(gitutil.remote_ref(self.repo, "feature/pr-42"), "")
+        self.assertEqual(gitutil.fetch_branch(self.repo, "feature/pr-42"), "origin/feature/pr-42")
+        self.assertEqual(gitutil.remote_ref(self.repo, "feature/pr-42"), "origin/feature/pr-42")
+
+    def test_qualified_name_fetches_and_resolves(self):
+        self.assertEqual(
+            gitutil.fetch_branch(self.repo, "origin/feature/pr-42"), "origin/feature/pr-42"
+        )
+
+    def test_nonexistent_branch_returns_empty(self):
+        self.assertEqual(gitutil.fetch_branch(self.repo, "nope"), "")
+
+
 if __name__ == "__main__":
     unittest.main()
