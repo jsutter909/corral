@@ -444,6 +444,19 @@ expect_output 'prompt segment is empty when corral fails' \
   $WORK/stub-fail 'print -r -- "seg=$(corral_prompt_info)."' \
   'seg=.'
 
+# Regression: ccd and the corral_prompt_info prompt segment must be defined even
+# when corral is NOT on PATH as the plugin is sourced — otherwise a prompt using
+# corral_prompt_info throws "command not found" (e.g. PATH set up after omz).
+# Sourced here with a deliberately corral-free PATH.
+(( CASES++ ))
+if env -i HOME=$WORK PATH=/usr/bin:/bin zsh -fc \
+    "source ${(q)PLUGIN_DIR}/corral.plugin.zsh; (( \$+functions[corral_prompt_info] && \$+functions[ccd] ))"; then
+  print 'ok    ccd + prompt segment are defined even when corral is off PATH'
+else
+  print -u2 'FAIL  ccd + prompt segment are defined even when corral is off PATH'
+  (( FAILS++ ))
+fi
+
 # ---------------------------------------------------------------------------
 
 print "== $(( CASES - FAILS ))/$CASES passed =="

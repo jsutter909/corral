@@ -324,8 +324,12 @@ def render_plugin() -> str:
 # Tab completion comes from the _corral file next to this one (oh-my-zsh puts
 # the plugin directory on fpath before compinit, so it loads automatically).
 
-# Bail quietly if corral isn't installed yet.
-(( $+commands[corral] )) || return 0
+# NOTE: we deliberately do NOT bail when `corral` isn't on PATH yet. ccd and the
+# corral_prompt_info prompt segment must always be defined — otherwise a prompt
+# that uses corral_prompt_info (e.g. RPROMPT='$(corral_prompt_info)') fails with
+# "command not found" when this plugin loads before PATH is set up (a common
+# .zshrc ordering: `export PATH=...` after `source oh-my-zsh.sh`). Both degrade
+# quietly via `command corral ... 2>/dev/null` when corral really is absent.
 
 # Zsh Plugin Standard $0 handling: resolve this file's path however we were
 # loaded (sourced, autoloaded, symlinked plugin dir, ...).
