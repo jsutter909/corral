@@ -142,6 +142,8 @@ _corral_commands() {
     'clean:remove agent workspaces whose work is done (alias for prune)'
     'resource:check shared resources (ports, credentials, …) in and out of pools'
     'res:check shared resources (ports, credentials, …) in and out of pools (alias for resource)'
+    'monitor:serve a local web UI to monitor and manage agent workspaces'
+    'ui:serve a local web UI to monitor and manage agent workspaces (alias for monitor)'
     'doctor:check that corral is healthy and up to date'
     'version:print the corral version'
     'help:show help (add a command name for details)'
@@ -179,6 +181,7 @@ _corral() {
         ide)     cmd=open ;;
         clean)   cmd=prune ;;
         res)     cmd=resource ;;
+        ui)      cmd=monitor ;;
       esac
       curcontext="${curcontext%:*:*}:corral-${cmd}:"
       case $cmd in
@@ -253,6 +256,13 @@ _corral() {
             '1:resource action:_corral_resource_actions' \
             '2::pool[/item]:_corral_resource_targets' \
             '*:item name:' \
+            && ret=0
+          ;;
+        monitor)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show monitor help]' \
+            '(-p --port)'{-p,--port}'[Port to serve the web UI on]:port:' \
+            '--host[Address to bind to (127.0.0.1 = local only; 0.0.0.0 = network)]:address:' \
             && ret=0
           ;;
         doctor)

@@ -41,6 +41,7 @@ fi
       ccl 'corral close' \
       cpr 'corral prune' \
       crs 'corral resource' \
+      cmon 'corral monitor' \
       cdoc 'corral doctor'; do
     (( $+commands[$name] || $+aliases[$name] || $+functions[$name] )) \
       || alias "$name"="$target"

@@ -280,6 +280,34 @@ corral resource release --all                               # return everything 
 corral resource ls --mine
 ```
 
+## `corral monitor [options]`
+
+Serve a local web dashboard for the agent fleet. It lists every corral-owned
+workspace joined to the resources it currently holds, plus every resource pool,
+and refreshes itself as things change. Buttons on the page spawn, focus, and
+close agents and release held resource items — each routed through the same
+command the CLI runs, so the web UI and the terminal share one implementation.
+
+The server is stdlib-only (no extra install) and binds to `127.0.0.1` by
+default — reachable only from this machine. Set `--host 0.0.0.0` (or
+`CORRAL_MONITOR_HOST`) to expose it on your network. Runs until interrupted
+with Ctrl-C.
+
+Alias: `corral ui`.
+
+**Options**
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-p`, `--port` `<port>` | `8477` | TCP port to serve the web UI on. |
+| `--host` `<addr>` | `127.0.0.1` | Address to bind to (`127.0.0.1` = local only; `0.0.0.0` = exposed). |
+
+```sh
+corral monitor                  # http://127.0.0.1:8477
+corral monitor --port 9000
+corral monitor --host 0.0.0.0   # reachable on your network
+```
+
 ## `corral doctor [options]`
 
 Check that corral is healthy and up to date:

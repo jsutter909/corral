@@ -242,6 +242,36 @@ SETTINGS: Tuple[Setting, ...] = (
         example_commented=True,
     ),
     Setting(
+        env="CORRAL_MONITOR_HOST",
+        attr="monitor_host",
+        default="127.0.0.1",
+        flag="--host",
+        flag_command="monitor",
+        doc=(
+            "Address `corral monitor` binds its web UI to. Defaults to loopback "
+            "(local only); set to `0.0.0.0` to expose it on your network."
+        ),
+        example=(
+            "Address 'corral monitor' binds its web UI to. Loopback by default, so the\n"
+            "dashboard is reachable only from this machine. Set to 0.0.0.0 to expose it on\n"
+            "the network. Override per-run with: corral monitor --host <addr>"
+        ),
+        example_commented=True,
+    ),
+    Setting(
+        env="CORRAL_MONITOR_PORT",
+        attr="monitor_port",
+        default="8477",
+        flag="--port",
+        flag_command="monitor",
+        doc="Port `corral monitor` serves its web UI on.",
+        example=(
+            "Port 'corral monitor' serves its web UI on.\n"
+            "Override per-run with: corral monitor --port <port>"
+        ),
+        example_commented=True,
+    ),
+    Setting(
         env="CORRAL_CONFIG",
         attr="config_path",
         default=_default_config_path,

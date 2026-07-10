@@ -66,5 +66,14 @@ CORRAL_BASE=
 # machine — all workspaces share it (rarely needs changing).
 # CORRAL_RESOURCES_DB="$HOME/.local/state/corral/resources.db"
 
+# Address 'corral monitor' binds its web UI to. Loopback by default, so the
+# dashboard is reachable only from this machine. Set to 0.0.0.0 to expose it on
+# the network. Override per-run with: corral monitor --host <addr>
+# CORRAL_MONITOR_HOST=127.0.0.1
+
+# Port 'corral monitor' serves its web UI on.
+# Override per-run with: corral monitor --port <port>
+# CORRAL_MONITOR_PORT=8477
+
 # Where this config lives (rarely needs changing).
 # CORRAL_CONFIG="$HOME/.config/corral/config.sh"
