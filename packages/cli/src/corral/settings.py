@@ -189,6 +189,28 @@ SETTINGS: Tuple[Setting, ...] = (
         example_commented=True,
     ),
     Setting(
+        env="CORRAL_REMOTE",
+        attr="remote",
+        default="",
+        default_doc="`` (local — this machine)",
+        empty_means="local (this machine)",
+        flag="--remote",
+        flag_command="start",
+        doc=(
+            "SSH target `corral start` attaches to, same syntax as `herdr --remote` "
+            "(a `Host` alias in your `~/.ssh/config`, or `user@host`). Empty runs "
+            "herdr on this machine."
+        ),
+        example=(
+            "SSH target 'corral start' attaches to, same syntax as herdr --remote:\n"
+            "a Host alias in your ~/.ssh/config, or user@host. When set, 'corral start'\n"
+            "installs corral on that machine, copies this config there, forwards the\n"
+            "monitor port back with ssh -L, and attaches with herdr --remote. Empty =\n"
+            "run herdr on this machine. Override per-run with: corral start --remote <target>"
+        ),
+        example_commented=True,
+    ),
+    Setting(
         env="CORRAL_BRANCH_PREFIX",
         attr="branch_prefix",
         default="agent",

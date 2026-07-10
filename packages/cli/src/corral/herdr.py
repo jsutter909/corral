@@ -10,9 +10,11 @@ payload) is captured.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
-from typing import Dict, List, Optional
+import time
+from typing import Dict, List, Optional, Tuple
 
 from .ui import CorralError
 from .workspaces import Workspace, WorktreeCreation
@@ -32,16 +34,27 @@ def require_deps(*deps: str) -> None:
 class Herdr:
     """Wraps the `herdr` executable; all methods raise CorralError on failure."""
 
-    def __init__(self, exe: str = "herdr") -> None:
+    def __init__(self, exe: str = "herdr", socket_path: str = "") -> None:
         self.exe = exe
+        # When set, every socket-API call targets this session's server instead
+        # of the default one (herdr selects its server via HERDR_SOCKET_PATH).
+        self.socket_path = socket_path
 
     # -- plumbing -----------------------------------------------------------
+
+    def _env(self) -> Optional[Dict[str, str]]:
+        if not self.socket_path:
+            return None
+        env = dict(os.environ)
+        env["HERDR_SOCKET_PATH"] = self.socket_path
+        return env
 
     def call(self, *args: str) -> Dict:
         proc = subprocess.run(
             [self.exe, *args],
             stdout=subprocess.PIPE,
             text=True,
+            env=self._env(),
         )
         out = (proc.stdout or "").strip()
         if proc.returncode != 0:
@@ -77,6 +90,7 @@ class Herdr:
                 [self.exe, "status", "server"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=self._env(),
             )
         except OSError:
             return False
@@ -89,6 +103,76 @@ class Herdr:
                 "  Start a herdr session first (run 'herdr', or attach with "
                 "'herdr --remote <target>')."
             )
+
+    # -- named sessions ------------------------------------------------------
+
+    def _session_list(self) -> List[Dict]:
+        """All persistent sessions herdr knows about (empty on any error).
+
+        Session management is server-independent, so this never uses the
+        socket override — it enumerates every session, running or not.
+        """
+        try:
+            proc = subprocess.run(
+                [self.exe, "session", "list", "--json"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except OSError:
+            return []
+        if proc.returncode != 0:
+            return []
+        try:
+            data = json.loads(proc.stdout or "{}")
+        except ValueError:
+            return []
+        sessions = data.get("sessions") if isinstance(data, dict) else None
+        return sessions if isinstance(sessions, list) else []
+
+    def session_running(self, name: str) -> bool:
+        return any(s.get("name") == name and s.get("running") for s in self._session_list())
+
+    def session_socket(self, name: str) -> str:
+        for s in self._session_list():
+            if s.get("name") == name:
+                return s.get("socket_path") or ""
+        return ""
+
+    def ensure_session_server(self, name: str, timeout: float = 10.0) -> str:
+        """Ensure a headless server for the named session is running; return its
+        socket path.
+
+        Starts `herdr --session <name> server` detached (in its own process
+        group, so it outlives the client this process is about to exec) only if
+        the session isn't already up — so an already-open session is reused, not
+        restarted. Raises CorralError if it never comes up.
+        """
+        if not self.session_running(name):
+            try:
+                subprocess.Popen(
+                    [self.exe, "--session", name, "server"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+            except OSError as exc:
+                raise CorralError(f"could not start herdr session '{name}': {exc}") from None
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                if self.session_running(name):
+                    break
+                time.sleep(0.2)
+            else:
+                raise CorralError(
+                    f"herdr session '{name}' did not come up within {timeout:g}s "
+                    "(try running 'herdr --session " + name + "' by hand)"
+                )
+        socket = self.session_socket(name)
+        if not socket:
+            raise CorralError(f"could not determine the socket for herdr session '{name}'")
+        return socket
 
     # -- workspaces ----------------------------------------------------------
 
@@ -104,6 +188,22 @@ class Herdr:
     def workspace_focus(self, workspace_id: str) -> None:
         self.call("workspace", "focus", workspace_id)
 
+    def workspace_create(self, label: str, cwd: str = "") -> Tuple[str, str]:
+        """Create a plain (worktree-less) workspace; return (workspace_id,
+        root_pane_id)."""
+        args = ["workspace", "create", "--label", label, "--no-focus"]
+        if cwd:
+            args += ["--cwd", cwd]
+        data = self.call(*args)
+        return (
+            self._get(data, "result.workspace.workspace_id"),
+            self._get(data, "result.root_pane.pane_id"),
+        )
+
+    def has_workspace_label(self, label: str) -> bool:
+        """True if any workspace already carries this label (idempotency check)."""
+        return any(ws.label == label for ws in self.workspace_list())
+
     def current_workspace(self) -> str:
         """Workspace id of the pane invoking corral; '' outside herdr."""
         try:
@@ -112,6 +212,7 @@ class Herdr:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
+                env=self._env(),
             )
             data = json.loads(proc.stdout or "{}")
         except (OSError, ValueError):
@@ -151,6 +252,7 @@ class Herdr:
                 [self.exe, "worktree", "remove", "--workspace", workspace_id, "--force"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=self._env(),
             )
         except OSError:
             pass

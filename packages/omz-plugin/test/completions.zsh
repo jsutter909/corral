@@ -306,7 +306,7 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
@@ -402,7 +402,7 @@ expect_none_of 'corral resource acquire <TAB> degrades to empty when corral fail
 
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -410,7 +410,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 
@@ -443,6 +443,19 @@ expect_output 'ccd fails cleanly when corral fails' \
 expect_output 'prompt segment is empty when corral fails' \
   $WORK/stub-fail 'print -r -- "seg=$(corral_prompt_info)."' \
   'seg=.'
+
+# Regression: ccd and the corral_prompt_info prompt segment must be defined even
+# when corral is NOT on PATH as the plugin is sourced — otherwise a prompt using
+# corral_prompt_info throws "command not found" (e.g. PATH set up after omz).
+# Sourced here with a deliberately corral-free PATH.
+(( CASES++ ))
+if env -i HOME=$WORK PATH=/usr/bin:/bin zsh -fc \
+    "source ${(q)PLUGIN_DIR}/corral.plugin.zsh; (( \$+functions[corral_prompt_info] && \$+functions[ccd] ))"; then
+  print 'ok    ccd + prompt segment are defined even when corral is off PATH'
+else
+  print -u2 'FAIL  ccd + prompt segment are defined even when corral is off PATH'
+  (( FAILS++ ))
+fi
 
 # ---------------------------------------------------------------------------
 

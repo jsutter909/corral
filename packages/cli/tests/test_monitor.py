@@ -148,7 +148,10 @@ class ActionDispatchTests(MonitorTestBase):
 
     def test_focus_end_to_end(self):
         ctx = self.ctx([agent_ws("w1", "feature", self.wt("app", "feature"))])
-        result = monitor.perform(ctx, "focus", {"workspace": "w1"})
+        # FakeHerdr stands in for the daemon; the real herdr binary isn't needed
+        # (and isn't installed on CI), so stub the dependency check.
+        with mock.patch("corral.commands.focus.require_deps"):
+            result = monitor.perform(ctx, "focus", {"workspace": "w1"})
         self.assertTrue(result["ok"])
         self.assertEqual(ctx.herdr.focused, ["w1"])
 
@@ -216,7 +219,10 @@ class HttpRoutingTests(MonitorTestBase):
     def test_focus_action_over_http(self):
         wt = self.wt("app", "feature")
         server, base = self._serve([agent_ws("w1", "feature", wt)])
-        status, data = self._post(base + "/api/focus", {"workspace": "w1"})
+        # See test_focus_end_to_end: the handler runs focus.run in this process,
+        # so stub the herdr-binary check that CI can't satisfy.
+        with mock.patch("corral.commands.focus.require_deps"):
+            status, data = self._post(base + "/api/focus", {"workspace": "w1"})
         self.assertEqual(status, 200)
         self.assertTrue(data["ok"])
         self.assertEqual(server.ctx.herdr.focused, ["w1"])

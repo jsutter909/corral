@@ -130,6 +130,7 @@ _corral_resource_targets() {
 
 _corral_commands() {
   local -a cmds=(
+    'start:start a herdr session (local or remote) with the monitor running'
     'spawn:launch an isolated agent workspace in a fresh git worktree'
     'ls:list active agent workspaces'
     'list:list active agent workspaces (alias for ls)'
@@ -185,6 +186,18 @@ _corral() {
       esac
       curcontext="${curcontext%:*:*}:corral-${cmd}:"
       case $cmd in
+        start)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show start help]' \
+            '(-r --remote)'{-r,--remote}'[SSH target to attach to (same as herdr --remote); empty = local]:ssh target:_hosts' \
+            '--no-attach[Set up this machine'\''s server + monitor, but don'\''t attach the TUI]' \
+            '--no-monitor[Don'\''t start corral monitor]' \
+            '--no-install[Remote: don'\''t try to install corral on the target]' \
+            '--no-config-copy[Remote: don'\''t copy this config to the target]' \
+            '--no-forward[Remote: don'\''t forward the monitor port with ssh -L]' \
+            '--dry-run[Print the commands that would run; change nothing]' \
+            && ret=0
+          ;;
         spawn)
           _arguments -S \
             '(- *)'{-h,--help}'[show spawn help]' \

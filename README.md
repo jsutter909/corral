@@ -50,6 +50,9 @@ make install      # or: make link  (symlink the working tree for development)
 ## Quickstart
 
 ```sh
+corral start                                # bring up herdr + the monitor, then attach
+corral start --remote devbox                # same, but on a remote machine over SSH
+
 # From your "command" pane in herdr:
 corral spawn ~/dev/app                      # new worktree + workspace, launches claude
 corral spawn ~/dev/app feature/checkout     # name the branch
@@ -70,6 +73,7 @@ corral doctor                                # check deps + update to the latest
 
 | Command | What it does |
 | --- | --- |
+| `corral start` | Start a herdr session (local, or remote over SSH) with `corral monitor` running, then attach the herdr TUI. |
 | `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent. |
 | `corral ls [--json]` | List active agent workspaces (id, label, branch, status, path). |
 | `corral monitor` | Serve a local web dashboard to monitor agents + resources and manage them (spawn/focus/close/release). |

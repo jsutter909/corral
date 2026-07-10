@@ -41,9 +41,11 @@ def _registry() -> Tuple[Registered, ...]:
         prune,
         resource,
         spawn,
+        start,
     )
 
     return (
+        Registered(start.SPEC, start.run),
         Registered(spawn.SPEC, spawn.run),
         Registered(ls.SPEC, ls.run),
         Registered(focus.SPEC, focus.run),
