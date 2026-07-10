@@ -157,7 +157,9 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
             if not ui.confirm(prompt):
                 continue
 
-        if not hooks.remove_workspace(ctx.herdr, ws.id, wt, force=force, cleanup=cleanup):
+        if not hooks.remove_workspace(
+            ctx.herdr, ws.id, wt, force=force, cleanup=cleanup, settings=ctx.settings
+        ):
             ui.warn(
                 f"skipping {ws.id} ({ws.label}) — cleanup failed "
                 "(--force to prune anyway, --no-cleanup to skip the script)"

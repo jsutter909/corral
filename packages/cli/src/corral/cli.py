@@ -36,6 +36,7 @@ class Argument:
     name: str  # "repo" / "branch" / "workspace"
     help: str  # one-liner for --help and the docs table
     required: bool = True
+    variadic: bool = False  # last argument only: collects all trailing positionals
     doc: str = ""  # richer prose for docs/usage.md (falls back to help)
     completion: str = ""  # zsh action (e.g. "_directories", "_corral_workspaces")
     value_label: str = ""  # zsh completion description (falls back to name)
@@ -46,7 +47,8 @@ class Argument:
 
     @property
     def display(self) -> str:
-        return f"<{self.name}>" if self.required else f"[{self.name}]"
+        name = f"{self.name}…" if self.variadic else self.name
+        return f"<{name}>" if self.required else f"[{name}]"
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class Option:
     help: str  # one-liner for --help, docs, and zsh [descriptions]
     short: str = ""  # "-a"
     metavar: str = ""  # "<name>"; empty means boolean flag
+    optional_value: bool = False  # bare flag -> True; value only via --opt=value
     setting: str = ""  # Settings attr backing the default (e.g. "agent")
     default_doc: str = ""  # documented default when not settings-backed
     choices: Tuple[str, ...] = ()  # completion candidates for the value
@@ -78,6 +81,8 @@ class Option:
     @property
     def display(self) -> str:
         joined = ", ".join(self.names)
+        if self.optional_value:
+            return f"{joined}[={self.metavar}]"
         return f"{joined} {self.metavar}" if self.metavar else joined
 
 
@@ -122,17 +127,19 @@ def parse_args(cmd: Command, argv: Tuple[str, ...], settings) -> Dict[str, objec
     """Parse argv against a Command spec.
 
     Returns a dict keyed by dest: flags default to False, valued options
-    default to their backing setting (or ""), arguments default to "".
+    default to their backing setting (or ""), arguments default to ""
+    (variadic arguments to []). Optional-value options default to False,
+    become True when given bare, and take a value only as --opt=value.
     Raises CorralError with the same wording the bash CLI used.
     """
     values: Dict[str, object] = {}
     for opt in cmd.options:
-        if opt.is_flag:
+        if opt.is_flag or opt.optional_value:
             values[opt.dest] = False
         else:
             values[opt.dest] = getattr(settings, opt.setting) if opt.setting else ""
     for arg in cmd.arguments:
-        values[arg.dest] = ""
+        values[arg.dest] = [] if arg.variadic else ""
 
     positionals = []
     tokens = list(argv)
@@ -158,6 +165,10 @@ def parse_args(cmd: Command, argv: Tuple[str, ...], settings) -> Dict[str, objec
                 if eq:
                     raise CorralError(f"{name} does not take a value")
                 values[opt.dest] = True
+            elif opt.optional_value:
+                # Never consumes the next token — a value must use --opt=value,
+                # so a following positional can't be swallowed by mistake.
+                values[opt.dest] = inline if eq else True
             elif eq:
                 values[opt.dest] = inline
             else:
@@ -167,11 +178,15 @@ def parse_args(cmd: Command, argv: Tuple[str, ...], settings) -> Dict[str, objec
             continue
         positionals.append(token)
 
-    if len(positionals) > len(cmd.arguments):
+    tail = cmd.arguments[-1] if cmd.arguments and cmd.arguments[-1].variadic else None
+    fixed = cmd.arguments[:-1] if tail is not None else cmd.arguments
+    if tail is None and len(positionals) > len(cmd.arguments):
         extra = positionals[len(cmd.arguments)]
         raise CorralError(f"unexpected argument: {extra}")
-    for arg, value in zip(cmd.arguments, positionals):
+    for arg, value in zip(fixed, positionals):
         values[arg.dest] = value
+    if tail is not None:
+        values[tail.dest] = positionals[len(fixed):]
 
     return values
 

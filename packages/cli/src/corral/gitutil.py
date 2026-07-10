@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from typing import Optional
 
@@ -20,6 +21,24 @@ def repo_root(path: str) -> str:
     """Toplevel of the repo containing `path`, or '' when outside a repo."""
     proc = _run(["-C", path, "rev-parse", "--show-toplevel"])
     return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def repo_common_root(path: str) -> str:
+    """Toplevel of the MAIN checkout of the repo containing `path`, or ''.
+
+    Unlike repo_root, this is the same for every linked worktree of a repo,
+    so it can stand in for "the repo" as a stable identity.
+    """
+    top = repo_root(path)
+    if not top:
+        return ""
+    proc = _run(["rev-parse", "--git-common-dir"], cwd=top)
+    if proc.returncode != 0:
+        return ""
+    common = os.path.realpath(os.path.join(top, proc.stdout.strip()))
+    if os.path.basename(common) == ".git":
+        return os.path.dirname(common)
+    return common  # bare/detached gitdir layouts: still a stable identity
 
 
 def current_branch(worktree: str) -> str:

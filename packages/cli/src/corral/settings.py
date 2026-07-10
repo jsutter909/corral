@@ -32,6 +32,13 @@ def _default_worktrees_dir(environ: Mapping[str, str]) -> str:
     return os.path.join(environ.get("HOME", "~"), ".herdr", "worktrees")
 
 
+def _default_resources_db(environ: Mapping[str, str]) -> str:
+    xdg = environ.get("XDG_STATE_HOME") or os.path.join(
+        environ.get("HOME", "~"), ".local", "state"
+    )
+    return os.path.join(xdg, "corral", "resources.db")
+
+
 @dataclass(frozen=True)
 class Setting:
     """One configurable value: its identity, default, and documentation."""
@@ -216,6 +223,22 @@ SETTINGS: Tuple[Setting, ...] = (
             "worktrees under this directory (rarely needs changing)."
         ),
         example_value='"$HOME/.herdr/worktrees"',
+        example_commented=True,
+    ),
+    Setting(
+        env="CORRAL_RESOURCES_DB",
+        attr="resources_db",
+        default=_default_resources_db,
+        default_doc="`~/.local/state/corral/resources.db`",
+        doc=(
+            "SQLite database backing `corral resource` pools and leases "
+            "(one per machine — all workspaces share it)."
+        ),
+        example=(
+            "Where 'corral resource' keeps its pools and leases. One database per\n"
+            "machine — all workspaces share it (rarely needs changing)."
+        ),
+        example_value='"$HOME/.local/state/corral/resources.db"',
         example_commented=True,
     ),
     Setting(

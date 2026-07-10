@@ -31,7 +31,7 @@ class Registered:
 
 def _registry() -> Tuple[Registered, ...]:
     # Imported lazily so command modules can import from this package freely.
-    from . import close, doctor, focus, ls, open as open_cmd, prune, spawn
+    from . import close, doctor, focus, ls, open as open_cmd, prune, resource, spawn
 
     return (
         Registered(spawn.SPEC, spawn.run),
@@ -40,6 +40,7 @@ def _registry() -> Tuple[Registered, ...]:
         Registered(open_cmd.SPEC, open_cmd.run),
         Registered(close.SPEC, close.run),
         Registered(prune.SPEC, prune.run),
+        Registered(resource.SPEC, resource.run),
         Registered(doctor.SPEC, doctor.run),
     )
 

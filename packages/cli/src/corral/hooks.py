@@ -67,6 +67,7 @@ def remove_workspace(
     worktree: str,
     force: bool,
     cleanup: bool,
+    settings=None,
 ) -> bool:
     """Run the cleanup hook, then remove a workspace's worktree.
 
@@ -74,8 +75,44 @@ def remove_workspace(
     path can forget the cleanup-before-remove invariant. cleanup=False skips
     the hook (--no-cleanup); force=True also removes when the hook fails.
     Returns False (nothing removed) when cleanup fails and force is not set.
+
+    When `settings` is given, any shared resources the workspace still holds
+    (see `corral resource`) are released after the removal succeeds.
     """
     if cleanup and not run_cleanup(worktree, force):
         return False
     herdr.worktree_remove(workspace_id)
+    if settings is not None:
+        release_resources(settings, worktree)
     return True
+
+
+def release_resources(settings, worktree: str) -> None:
+    """Best-effort: return the workspace's checked-out shared resources.
+
+    Runs after the worktree is gone, needs only the resources database (no
+    herdr, no git), and never raises — a database hiccup must not turn a
+    successful close/prune into a failure.
+    """
+    from . import resources  # late import: sqlite3 only when actually needed
+
+    if not os.path.isfile(settings.resources_db):
+        return
+    holder = resources.holder_for_worktree(settings.worktrees_dir, worktree)
+    if not holder:
+        return
+    try:
+        conn = resources.connect(settings.resources_db)
+        try:
+            released = resources.release_all(conn, holder)
+        finally:
+            conn.close()
+    except Exception as exc:
+        ui.warn(
+            f"could not auto-release shared resources ({exc}) — run "
+            f"'corral resource release --all --as {holder}' by hand"
+        )
+        return
+    if released:
+        names = ", ".join(f"{pool}/{name}" for pool, name in released)
+        ui.info(f"released {len(released)} shared resource(s): {names}")

@@ -108,7 +108,9 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
             ui.info("aborted")
             return 0
 
-    if not hooks.remove_workspace(ctx.herdr, ws.id, wt, force=force, cleanup=cleanup):
+    if not hooks.remove_workspace(
+        ctx.herdr, ws.id, wt, force=force, cleanup=cleanup, settings=ctx.settings
+    ):
         raise CorralError(
             f"cleanup failed for {ws.id} ({ws.label}) — worktree left intact "
             "(--force to remove anyway, --no-cleanup to skip the script)"

@@ -62,5 +62,9 @@ CORRAL_BASE=
 # worktrees under this directory (rarely needs changing).
 # CORRAL_WORKTREES_DIR="$HOME/.herdr/worktrees"
 
+# Where 'corral resource' keeps its pools and leases. One database per
+# machine — all workspaces share it (rarely needs changing).
+# CORRAL_RESOURCES_DB="$HOME/.local/state/corral/resources.db"
+
 # Where this config lives (rarely needs changing).
 # CORRAL_CONFIG="$HOME/.config/corral/config.sh"

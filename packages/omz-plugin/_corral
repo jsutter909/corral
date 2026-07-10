@@ -25,6 +25,20 @@ _corral_agents() {
   _describe -t agents 'agent' agents
 }
 
+# Actions for `corral resource` — rendered from the action registry
+# (corral.commands.resource.ACTIONS).
+_corral_resource_actions() {
+  local -a actions=(
+    'acquire:check out one free item from a pool'
+    'release:return checked-out items to their pool'
+    'add:create a pool or add items to one'
+    'rm:remove a pool or a single item'
+    'ls:list pools, items, and holders'
+    'sync:sync this repo'\''s .corral/resources.json into the database'
+  )
+  _describe -t actions 'resource action' actions
+}
+
 # Git refs for --base. Pragmatic choice: complete refs of the repo containing
 # the spawn <repo> positional when it has been typed and is a directory,
 # otherwise the current directory's repo. Silently no matches outside a repo.
@@ -74,6 +88,44 @@ _corral_workspaces() {
   _describe -t workspaces 'workspace (id or label)' pairs
 }
 
+# Pool / item targets from `corral resource ls --tsv` (columns: pool, item,
+# state, holder, acquired). What to offer depends on the action already typed
+# ($line is visible here via dynamic scope, like _corral_git_refs):
+#   release -> held <pool>/<item> pairs plus pool names
+#   rm      -> every <pool>/<item> plus pool names
+#   else    -> pool names
+# Pool/item names can't contain colons (corral validates them), so no
+# escaping is needed for _describe. Degrades silently to no matches.
+_corral_resource_targets() {
+  local action=${line[1]:-}
+  local -a rows parts pairs pools
+  rows=( ${(f)"$(command corral resource ls --tsv 2>/dev/null)"} )
+
+  local row pool item state holder
+  for row in $rows; do
+    parts=( "${(@ps:\t:)row}" )
+    pool=$parts[1] item=$parts[2] state=$parts[3] holder=$parts[4]
+    [[ -n $pool ]] || continue
+    (( ${pools[(I)$pool]} )) || pools+=( $pool )
+    case $action in
+      release)
+        [[ -n $holder ]] && pairs+=( "${pool}/${item}:held by ${holder}" )
+        ;;
+      rm)
+        pairs+=( "${pool}/${item}:${state}${holder:+ by $holder}" )
+        ;;
+    esac
+  done
+
+  local p
+  for p in $pools; do
+    pairs+=( "${p}:pool" )
+  done
+
+  (( $#pairs )) || return 1
+  _describe -t resources 'pool or pool/item' pairs
+}
+
 # --- subcommands -------------------------------------------------------------
 
 _corral_commands() {
@@ -88,6 +140,8 @@ _corral_commands() {
     'close:remove an agent'\''s git worktree and close its workspace'
     'prune:remove agent workspaces whose work is done'
     'clean:remove agent workspaces whose work is done (alias for prune)'
+    'resource:check shared resources (ports, credentials, …) in and out of pools'
+    'res:check shared resources (ports, credentials, …) in and out of pools (alias for resource)'
     'doctor:check that corral is healthy and up to date'
     'version:print the corral version'
     'help:show help (add a command name for details)'
@@ -124,6 +178,7 @@ _corral() {
         attach)  cmd=focus ;;
         ide)     cmd=open ;;
         clean)   cmd=prune ;;
+        res)     cmd=resource ;;
       esac
       curcontext="${curcontext%:*:*}:corral-${cmd}:"
       case $cmd in
@@ -182,6 +237,22 @@ _corral() {
             '(-n --dry-run)'{-n,--dry-run}'[Show what would be pruned without removing anything]' \
             '(-f --force)'{-f,--force}'[Skip the per-workspace confirmation prompt; prune even if]' \
             '--no-cleanup[Do not run .corral/cleanup.sh (also: CORRAL_CLEANUP=0)]' \
+            && ret=0
+          ;;
+        resource)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show resource help]' \
+            '(--tsv -j --json)'{-j,--json}'[Emit machine-readable JSON (acquire, ls)]' \
+            '(--json)--tsv[Emit tab-separated rows: pool, name, state, holder, acquired_at (ls)]' \
+            '--as[Act as this holder]:holder:' \
+            '(-w --wait)--wait=-[acquire: poll until an item frees up instead of failing]::seconds:' \
+            '--data[add: JSON payload attached to each added item (shown by acquire --json)]:json:' \
+            '--all[release: return everything the holder has checked out]' \
+            '--mine[ls: only items checked out by this workspace/holder]' \
+            '(-f --force)'{-f,--force}'[Release an item held by someone else; rm a pool with held items]' \
+            '1:resource action:_corral_resource_actions' \
+            '2::pool[/item]:_corral_resource_targets' \
+            '*:item name:' \
             && ret=0
           ;;
         doctor)

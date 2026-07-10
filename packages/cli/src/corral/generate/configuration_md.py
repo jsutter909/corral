@@ -60,6 +60,7 @@ session (see the security note below).
 | --- | --- | --- |
 | `.corral/setup.sh` | supported | Environment setup run in the agent pane before the agent: `bash .corral/setup.sh && <agent>`. The agent starts only if it exits 0; on failure the workspace is kept and the error stays visible in the pane. Needs no executable bit. |
 | `.corral/cleanup.sh` | supported | Teardown run in the worktree (`bash .corral/cleanup.sh`, stdin closed) before it is removed on close/prune, as the script exists at that moment. If it exits non-zero the removal is aborted and the worktree kept; `--force` removes anyway, `--no-cleanup` skips the script. Needs no executable bit. |
+| `.corral/resources.json` | supported | Shared resource pools (dev ports, app credentials, …) synced into the machine-wide database by `corral resource` — see [usage.md](usage.md#corral-resource). |
 | `.corral/config.sh` | reserved | Per-repo spawn defaults (future). |
 | `.corral/layout.sh` | reserved | Pane/layout customization (future). |
 | `.corral/watch.d/` | reserved | Watch scripts launched in extra panes/tabs (future). |
@@ -74,6 +75,18 @@ copying a `.env` from the primary checkout, `direnv allow`.
 
 Skip it for one run with `corral spawn <repo> --no-setup`, or disable it
 globally with `CORRAL_SETUP=0`.
+
+`.corral/resources.json` declares shared resource pools the repo's workspaces
+draw from (see [`corral resource`](usage.md#corral-resource) for the format
+and sync semantics). To reserve a resource for every workspace at spawn time,
+acquire it in `setup.sh` — the holder is detected from the worktree path, and
+`corral close`/`corral prune` return whatever the workspace still holds:
+
+```sh
+# .corral/setup.sh
+PORT=$(corral resource acquire ports --wait=60) || exit 1
+echo "DEV_PORT=$PORT" >> .env
+```
 
 `.corral/cleanup.sh` is the teardown counterpart: it runs in the worktree
 (cwd = the worktree, stdin closed) right before `corral close`/`corral prune`
