@@ -131,6 +131,7 @@ _corral_resource_targets() {
 _corral_commands() {
   local -a cmds=(
     'start:start a herdr session (local or remote) with the monitor running'
+    'end:stop corral'\''s herdr session and release its shared resources'
     'spawn:launch an isolated agent workspace in a fresh git worktree'
     'ls:list active agent workspaces'
     'list:list active agent workspaces (alias for ls)'
@@ -192,10 +193,19 @@ _corral() {
             '(-r --remote)'{-r,--remote}'[SSH target to attach to (same as herdr --remote); empty = local]:ssh target:_hosts' \
             '--no-attach[Set up this machine'\''s server + monitor, but don'\''t attach the TUI]' \
             '--no-monitor[Don'\''t start corral monitor]' \
+            '--no-agents[Don'\''t open an agent workspace per existing worktree on a fresh]' \
             '--no-install[Remote: don'\''t try to install corral on the target]' \
             '--no-config-copy[Remote: don'\''t copy this config to the target]' \
             '--no-forward[Remote: don'\''t forward the monitor port with ssh -L]' \
             '--dry-run[Print the commands that would run; change nothing]' \
+            && ret=0
+          ;;
+        end)
+          _arguments -S \
+            '(- *)'{-h,--help}'[show end help]' \
+            '(-f --force)'{-f,--force}'[Skip the confirmation prompt]' \
+            '--no-resources[Don'\''t auto-release shared resources held by the worktrees]' \
+            '--dry-run[Print what would be released/stopped; change nothing]' \
             && ret=0
           ;;
         spawn)

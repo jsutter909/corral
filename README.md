@@ -50,8 +50,9 @@ make install      # or: make link  (symlink the working tree for development)
 ## Quickstart
 
 ```sh
-corral start                                # bring up herdr + the monitor, then attach
+corral start                                # bring up herdr + monitor + an agent per worktree, then attach
 corral start --remote devbox                # same, but on a remote machine over SSH
+corral start --no-agents                    # don't reopen agents for existing worktrees
 
 # From your "command" pane in herdr:
 corral spawn ~/dev/app                      # new worktree + workspace, launches claude
@@ -67,13 +68,14 @@ corral open checkout                         # open the worktree in VS Code/Curs
 corral close                                 # tear down the workspace you're in
 corral prune                                 # remove merged + clean agent workspaces
 corral doctor                                # check deps + update to the latest main
+corral end                                   # stop the corral session + release its resources
 ```
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `corral start` | Start a herdr session (local, or remote over SSH) with `corral monitor` running, then attach the herdr TUI. |
+| `corral start` | Start a herdr session (local, or remote over SSH) with `corral monitor` running and — on a fresh session — an agent workspace reopened for every existing worktree, then attach the herdr TUI. |
 | `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent. |
 | `corral ls [--json]` | List active agent workspaces (id, label, branch, status, path). |
 | `corral monitor` | Serve a local web dashboard to monitor agents + resources and manage them (spawn/focus/close/release). |
@@ -82,6 +84,7 @@ corral doctor                                # check deps + update to the latest
 | `corral close [workspace]` | Remove an agent's worktree and close its workspace. |
 | `corral prune` | Remove agent workspaces that are merged **and** have a clean tree. |
 | `corral doctor` | Check dependencies and update corral to the latest `main`. |
+| `corral end` | Stop the persistent `corral` session (the teardown counterpart to `start`) and release the shared resources its worktrees still hold. |
 | `corral help [command]` | Help, optionally for a specific command. |
 
 Every command has `--help`. Full reference: [`docs/usage.md`](docs/usage.md).

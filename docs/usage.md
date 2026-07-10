@@ -17,6 +17,13 @@ default herdr session: `herdr --session corral` starts it if needed and
 attaches the existing one otherwise, so `start` always lands on the same
 session and the monitor survives disconnects.
 
+**Agents per worktree.** On a *fresh* session `start` also opens an agent
+workspace (the same agent-left / two-terminals layout as `spawn`, using your
+configured `CORRAL_AGENT`/`CORRAL_MODEL`) for every existing worktree under
+`CORRAL_WORKTREES_DIR` — one command rebuilds your whole bench. When the
+session is merely reconnected to, no agents are opened (they are already
+running). `--no-agents` skips opening them even on a fresh start.
+
 **Local** (no target) — corral session + monitor here, then
 `herdr --session corral`.
 
@@ -46,16 +53,49 @@ the remote path.
 | `-r`, `--remote` `<target>` | `` (local — this machine) | SSH target to attach to (same syntax as `herdr --remote`). |
 | `--no-attach` | — | Set up this machine's server + monitor without attaching the herdr client. |
 | `--no-monitor` | — | Skip starting `corral monitor`. |
+| `--no-agents` | — | Don't open an agent workspace for each existing worktree when the corral session is started fresh. (Reconnecting to an already-running session never opens agents, with or without this flag.) |
 | `--no-install` | — | Remote only: skip installing corral on the target. |
 | `--no-config-copy` | — | Remote only: skip copying this machine's config to the target. |
 | `--no-forward` | — | Remote only: skip the `ssh -L` monitor-port forward. |
 | `--dry-run` | — | Print every command `start` would run (including the attach) without executing. |
 
 ```sh
-corral start                             # local herdr + monitor, then attach
+corral start                             # local herdr + monitor + an agent per worktree, then attach
 corral start --remote devbox             # bootstrap + attach devbox over SSH
+corral start --no-agents                 # don't reopen agents for existing worktrees
 corral start --no-attach                 # just bring up the server + monitor
 corral start --remote devbox --dry-run   # show what it would do
+```
+
+## `corral end [options]`
+
+Stop corral's persistent **`corral`** session — the teardown counterpart to
+`corral start` — and release the shared resources its worktrees still hold.
+
+Stopping the session kills every agent running in it, so `end` prompts first
+unless `--force`. Before stopping, it returns any items still checked out by a
+corral worktree (holder `ws:<repo>/<label>`, see `corral resource`) to their
+pools — the same auto-release `corral close` does, but for the whole bench at
+once — so no lease outlives the session. `--no-resources` leaves leases in
+place.
+
+The git worktrees under `CORRAL_WORKTREES_DIR` are left untouched; a later
+`corral start` reopens them. To remove a worktree, use `corral close` /
+`corral prune`.
+
+**Options**
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-f`, `--force` | — | Skip the confirmation prompt. |
+| `--no-resources` | — | Don't release the shared resources corral worktrees still hold. |
+| `--dry-run` | — | Print the resources it would release and the session it would stop, without doing it. |
+
+```sh
+corral end                  # release resources, then stop the corral session (prompts)
+corral end --force          # no prompt
+corral end --no-resources   # stop the session but keep leases
+corral end --dry-run        # show what it would do
 ```
 
 ## `corral spawn <repo> [branch] [options]`

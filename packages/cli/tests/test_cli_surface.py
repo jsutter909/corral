@@ -43,7 +43,7 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(0, "version")
         self.assert_exit(0, "-V")
         for cmd in (
-            "start", "spawn", "close", "ls", "focus", "open", "ide",
+            "start", "end", "spawn", "close", "ls", "focus", "open", "ide",
             "prune", "resource", "res", "monitor", "ui", "doctor",
         ):
             self.assert_exit(0, cmd, "--help")
@@ -73,6 +73,8 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(1, "monitor", "--bogus")
         self.assert_exit(1, "start", "--bogus")  # unknown flag
         self.assert_exit(1, "start", "--remote")  # missing value
+        self.assert_exit(1, "end", "--bogus")  # unknown flag
+        self.assert_exit(1, "end", "extra-arg")  # takes no positionals
 
     def test_start_dry_run_needs_no_herdr(self):
         # --dry-run prints the plan and exits 0 without touching herdr or ssh.
@@ -80,6 +82,12 @@ class ExitCodeTests(unittest.TestCase):
         out = proc.stdout + proc.stderr
         self.assertIn("8477:127.0.0.1:8477", out)  # monitor-port forward
         self.assertIn("exec herdr --remote devbox --session corral", out)
+
+    def test_end_dry_run_needs_no_herdr(self):
+        # --dry-run prints the plan and exits 0 without touching herdr.
+        proc = self.assert_exit(0, "end", "--dry-run")
+        out = proc.stdout + proc.stderr
+        self.assertIn("session stop corral", out)
 
     def test_ratio_is_validated_before_any_herdr_call(self):
         proc = self.assert_exit(1, "spawn", ".", "--ratio", "1.5")
@@ -91,7 +99,7 @@ class ExitCodeTests(unittest.TestCase):
 
     def test_help_lists_every_command(self):
         proc = self.assert_exit(0, "help")
-        for cmd in ("spawn", "ls", "focus", "open", "close", "prune", "resource", "monitor", "doctor"):
+        for cmd in ("start", "end", "spawn", "ls", "focus", "open", "close", "prune", "resource", "monitor", "doctor"):
             self.assertIn(cmd, proc.stdout)
 
     def test_alias_help_matches_target(self):

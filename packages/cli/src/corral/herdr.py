@@ -139,6 +139,11 @@ class Herdr:
                 return s.get("socket_path") or ""
         return ""
 
+    def session_stop(self, name: str) -> None:
+        """Stop a named session's server (killing its running agents). Raises
+        CorralError if the session isn't running / can't be reached."""
+        self.call("session", "stop", name)
+
     def ensure_session_server(self, name: str, timeout: float = 10.0) -> str:
         """Ensure a headless server for the named session is running; return its
         socket path.
@@ -240,6 +245,21 @@ class Herdr:
             workspace_id=self._get(data, "result.workspace.workspace_id"),
             root_pane_id=self._get(data, "result.root_pane.pane_id"),
             worktree_path=self._get(data, "result.worktree.path"),
+        )
+
+    def worktree_open(self, path: str, label: str = "") -> WorktreeCreation:
+        """Open an EXISTING worktree checkout into a workspace (the counterpart
+        to `worktree_create`, which makes a new checkout). Reports
+        `already_open` when this server already had a workspace on it."""
+        args = ["worktree", "open", "--path", path, "--no-focus"]
+        if label:
+            args += ["--label", label]
+        data = self.call(*args)
+        return WorktreeCreation(
+            workspace_id=self._get(data, "result.workspace.workspace_id"),
+            root_pane_id=self._get(data, "result.root_pane.pane_id"),
+            worktree_path=self._get(data, "result.worktree.path"),
+            already_open=bool((data.get("result") or {}).get("already_open")),
         )
 
     def worktree_remove(self, workspace_id: str) -> None:
