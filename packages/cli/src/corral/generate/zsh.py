@@ -45,6 +45,11 @@ def _option_spec(opt: Option) -> str:
         else:
             action = ""
         value = f":{hint}:{action}"
+    if opt.optional_value:
+        # Value only in --opt=value form ('=-'), and optional ('::'). Only the
+        # long form is offered; the short one still parses.
+        group = " ".join((*opt.excludes, opt.short, opt.long)).strip()
+        return f"'({group}){opt.long}=-[{desc}]:{value}'"
     if opt.short:
         group = " ".join((*opt.excludes, opt.short, opt.long))
         return f"'({group})'{{{opt.short},{opt.long}}}'[{desc}]{value}'"
@@ -56,6 +61,8 @@ def _option_spec(opt: Option) -> str:
 
 def _argument_spec(position: int, arg: Argument) -> str:
     label = _zq(arg.value_label or arg.name)
+    if arg.variadic:
+        return f"'*:{label}:{arg.completion}'"
     colon = ":" if arg.required else "::"
     return f"'{position}{colon}{label}:{arg.completion}'"
 
@@ -82,6 +89,23 @@ _corral_agents() {{
 {entries}
   )
   _describe -t agents 'agent' agents
+}}"""
+
+
+def _resource_actions_fn() -> str:
+    from ..commands.resource import ACTIONS
+
+    entries = "\n".join(
+        f"    '{_zq(name)}:{_zq(summary)}'" for name, summary in ACTIONS
+    )
+    return f"""\
+# Actions for `corral resource` — rendered from the action registry
+# (corral.commands.resource.ACTIONS).
+_corral_resource_actions() {{
+  local -a actions=(
+{entries}
+  )
+  _describe -t actions 'resource action' actions
 }}"""
 
 
@@ -154,6 +178,44 @@ _corral_workspaces() {
 
   (( $#pairs )) || return 1
   _describe -t workspaces 'workspace (id or label)' pairs
+}
+
+# Pool / item targets from `corral resource ls --tsv` (columns: pool, item,
+# state, holder, acquired). What to offer depends on the action already typed
+# ($line is visible here via dynamic scope, like _corral_git_refs):
+#   release -> held <pool>/<item> pairs plus pool names
+#   rm      -> every <pool>/<item> plus pool names
+#   else    -> pool names
+# Pool/item names can't contain colons (corral validates them), so no
+# escaping is needed for _describe. Degrades silently to no matches.
+_corral_resource_targets() {
+  local action=${line[1]:-}
+  local -a rows parts pairs pools
+  rows=( ${(f)"$(command corral resource ls --tsv 2>/dev/null)"} )
+
+  local row pool item state holder
+  for row in $rows; do
+    parts=( "${(@ps:\\t:)row}" )
+    pool=$parts[1] item=$parts[2] state=$parts[3] holder=$parts[4]
+    [[ -n $pool ]] || continue
+    (( ${pools[(I)$pool]} )) || pools+=( $pool )
+    case $action in
+      release)
+        [[ -n $holder ]] && pairs+=( "${pool}/${item}:held by ${holder}" )
+        ;;
+      rm)
+        pairs+=( "${pool}/${item}:${state}${holder:+ by $holder}" )
+        ;;
+    esac
+  done
+
+  local p
+  for p in $pools; do
+    pairs+=( "${p}:pool" )
+  done
+
+  (( $#pairs )) || return 1
+  _describe -t resources 'pool or pool/item' pairs
 }"""
 
 
@@ -170,6 +232,8 @@ def render_completion() -> str:
         "# --- value helpers ----------------------------------------------------------",
         "",
         _agents_fn(),
+        "",
+        _resource_actions_fn(),
         "",
         _STATIC_HELPERS,
         "",

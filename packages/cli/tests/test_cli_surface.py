@@ -11,7 +11,13 @@ CORRAL = os.path.join(HERE, os.pardir, "bin", "corral")
 
 
 def run(*args):
-    env = dict(os.environ, CORRAL_CONFIG="/nonexistent/corral-config.sh")
+    # RESOURCES_DB points at an uncreatable path: every case below must exit
+    # before touching the database (validated-before-any-side-effect pattern).
+    env = dict(
+        os.environ,
+        CORRAL_CONFIG="/nonexistent/corral-config.sh",
+        CORRAL_RESOURCES_DB="/nonexistent/corral-test/resources.db",
+    )
     return subprocess.run(
         [CORRAL, *args],
         stdout=subprocess.PIPE,
@@ -36,7 +42,10 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(0, "help")
         self.assert_exit(0, "version")
         self.assert_exit(0, "-V")
-        for cmd in ("spawn", "close", "ls", "focus", "open", "ide", "prune", "doctor"):
+        for cmd in (
+            "spawn", "close", "ls", "focus", "open", "ide",
+            "prune", "resource", "res", "doctor",
+        ):
             self.assert_exit(0, cmd, "--help")
         self.assert_exit(0, "help", "spawn")
 
@@ -53,6 +62,12 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(1, "open", "--ide", "emacs")  # unknown ide
         self.assert_exit(1, "open", "--bogus")
         self.assert_exit(1, "ls", "extra-arg")  # unexpected positional
+        self.assert_exit(1, "resource")  # missing action
+        self.assert_exit(1, "resource", "bogus-action")
+        self.assert_exit(1, "resource", "acquire")  # missing pool
+        self.assert_exit(1, "resource", "ls", "--json", "--tsv")
+        self.assert_exit(1, "resource", "acquire", "ports", "extra")  # not add
+        self.assert_exit(1, "resource", "release", "--all", "ports")
 
     def test_ratio_is_validated_before_any_herdr_call(self):
         proc = self.assert_exit(1, "spawn", ".", "--ratio", "1.5")
@@ -64,12 +79,13 @@ class ExitCodeTests(unittest.TestCase):
 
     def test_help_lists_every_command(self):
         proc = self.assert_exit(0, "help")
-        for cmd in ("spawn", "ls", "focus", "open", "close", "prune", "doctor"):
+        for cmd in ("spawn", "ls", "focus", "open", "close", "prune", "resource", "doctor"):
             self.assertIn(cmd, proc.stdout)
 
     def test_alias_help_matches_target(self):
         self.assertEqual(run("ide", "--help").stdout, run("open", "--help").stdout)
         self.assertEqual(run("list", "--help").stdout, run("ls", "--help").stdout)
+        self.assertEqual(run("res", "--help").stdout, run("resource", "--help").stdout)
 
 
 if __name__ == "__main__":

@@ -200,6 +200,86 @@ corral prune --dry-run
 corral prune --base main --force
 ```
 
+## `corral resource <action> [target] [items…] [options]`
+
+Check shared resources in and out of named pools — dev-server ports, Shopify
+dev-app credentials, anything scarce that concurrent agent workspaces must not
+grab twice. State lives in one machine-wide SQLite database
+(`CORRAL_RESOURCES_DB`); every checkout is a single database transaction, so
+two agents can never acquire the same item.
+
+| Action | Meaning |
+| --- | --- |
+| `acquire` | check out one free item from a pool |
+| `release` | return checked-out items to their pool |
+| `add` | create a pool or add items to one |
+| `rm` | remove a pool or a single item |
+| `ls` | list pools, items, and holders |
+| `sync` | sync this repo's .corral/resources.json into the database |
+
+`acquire` prints the item name on stdout (`PORT=$(corral resource acquire
+ports)`); `--json` adds the item's attached data payload (for example Shopify
+app credentials). When the pool is exhausted it fails and lists the holders;
+`--wait` polls until an item frees up instead.
+
+**Holders.** Run inside a corral worktree, acquire records the workspace
+(`ws:<repo>/<label>`) as the holder — so a `.corral/setup.sh` can reserve
+resources at spawn time — and `corral close`/`corral prune` automatically
+release everything that workspace still holds. Outside a worktree the holder
+is `user@host:<cwd>`; `--as` overrides it either way.
+
+**Per-repo pools.** A repo can commit a `.corral/resources.json` declaring
+pools; corral syncs it into the database on `acquire`/`ls`/`sync`:
+
+```json
+{
+  "shopify-dev-apps": [
+    {"name": "dev-app-1", "data": {"api_key": "…", "url": "…"}},
+    {"name": "dev-app-2", "data": {"api_key": "…"}}
+  ],
+  "ports": {"range": [3000, 3009]}
+}
+```
+
+The file is declarative for the pools it names: new items are added, changed
+`data` is updated in place (leases untouched), and items dropped from the file
+are deleted when free — or retired when currently held, so they are never
+handed out again and disappear once released. Items added to the same pool via
+the CLI are left alone. See
+[per-repo configuration](configuration.md#per-repo-configuration-corral).
+
+Alias: `corral res`.
+
+**Arguments**
+
+| Arg | Meaning |
+| --- | --- |
+| `<action>` | One of: acquire, release, add, rm, ls, sync |
+| `[target]` | Pool name, or `<pool>/<item>` for `release` and `rm`. |
+| `[items…]` | Items to add (`add` only); `N-M` expands to an inclusive port range. |
+
+**Options**
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-j`, `--json` | — | Emit machine-readable JSON, including item `data` (`acquire`, `ls`). |
+| `--tsv` | — | Emit one tab-separated row per item (`ls`). Columns: pool, name, state, holder, acquired_at — the format the zsh completion consumes. |
+| `--as` `<holder>` | (none) | Act as this holder tag (default: the enclosing corral workspace as `ws:<repo>/<label>`, else `user@host:<cwd>`). |
+| `-w`, `--wait` `<seconds>` | (none) | `acquire` only: poll every 2s until an item frees up instead of failing. Bare `--wait` waits forever; `--wait=30` gives up after 30 seconds. |
+| `--data` `<json>` | (none) | `add` only: a JSON payload attached to each added item, returned by `acquire --json` and `ls --json`. |
+| `--all` | — | `release` only: return everything the holder has checked out. |
+| `--mine` | — | `ls` only: only items checked out by this workspace/holder. |
+| `-f`, `--force` | — | Release an item held by someone else; `rm` a pool with held items. |
+
+```sh
+corral resource add ports 3000-3009
+corral resource acquire ports                               # prints e.g. 3001
+corral resource acquire shopify-dev-apps --json --wait=60
+corral resource release ports/3001
+corral resource release --all                               # return everything this workspace holds
+corral resource ls --mine
+```
+
 ## `corral doctor [options]`
 
 Check that corral is healthy and up to date:

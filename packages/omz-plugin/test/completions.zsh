@@ -65,11 +65,21 @@ printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
   w7 'tax: rounding' app 'bugfix/tax'   idle "$WORK/wt-b" \
   >$WORK/ls.tsv
 
+# Canned resource pools. Columns (corral resource ls --tsv):
+#   pool  item  state  holder  acquired_at
+printf '%s\t%s\t%s\t%s\t%s\n' \
+  ports 3000 held 'ws:app/checkout-fix' 2026-07-08T00:00:00Z \
+  ports 3001 free '' '' \
+  shopify-dev-apps dev-app-1 free '' '' \
+  >$WORK/resources.tsv
+
 cat >$WORK/stub-ok/corral <<EOF
 #!/bin/sh
-# Fake corral: canned \`ls --tsv\`; no herdr server needed.
+# Fake corral: canned \`ls --tsv\` / \`resource ls --tsv\`; no herdr needed.
 if [ "\${1:-}" = "ls" ] && [ "\${2:-}" = "--tsv" ]; then
   cat '$WORK/ls.tsv'
+elif [ "\${1:-}" = "resource" ] && [ "\${2:-}" = "ls" ] && [ "\${3:-}" = "--tsv" ]; then
+  cat '$WORK/resources.tsv'
 fi
 exit 0
 EOF
@@ -296,7 +306,7 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  spawn close ls list focus attach open ide prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean resource res doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
@@ -365,9 +375,34 @@ expect_exact 'corral doctor --<TAB> lists doctor flags' \
   $WORK/stub-ok 'corral doctor --' \
   --no-update --help
 
+expect_exact 'corral resource <TAB> lists actions' \
+  $WORK/stub-ok 'corral resource ' \
+  acquire release add rm ls sync
+
+# The res alias shares resource's completion.
+expect_exact 'corral res <TAB> lists actions (alias)' \
+  $WORK/stub-ok 'corral res ' \
+  acquire release add rm ls sync
+
+expect_exact 'corral resource acquire <TAB> offers pool names' \
+  $WORK/stub-ok 'corral resource acquire ' \
+  ports shopify-dev-apps
+
+expect_exact 'corral resource release <TAB> offers held items and pools' \
+  $WORK/stub-ok 'corral resource release ' \
+  ports/3000 ports shopify-dev-apps
+
+expect_exact 'corral resource rm <TAB> offers every item and pool' \
+  $WORK/stub-ok 'corral resource rm ' \
+  ports/3000 ports/3001 shopify-dev-apps/dev-app-1 ports shopify-dev-apps
+
+expect_none_of 'corral resource acquire <TAB> degrades to empty when corral fails' \
+  $WORK/stub-fail 'corral resource acquire ' \
+  ports shopify-dev-apps
+
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  spawn close ls list focus attach open ide prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean resource res doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -375,7 +410,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  spawn close ls list focus attach open ide prune clean doctor version help
+  spawn close ls list focus attach open ide prune clean resource res doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 
