@@ -6,12 +6,12 @@ import os
 from pathlib import Path
 from typing import Dict
 
-from .. import remote, ui
-from ..agents import sh_quote
+from .. import gitutil, remote, ui
+from ..agents import launch_command, sh_quote
 from ..cli import Command, Example, Option
 from ..herdr import Herdr, require_deps
 from ..ui import CorralError
-from . import Context
+from . import Context, split_agent_panes
 
 # The workspace corral parks `corral monitor` in. Reused across runs so `start`
 # is idempotent — a second start won't stack a second monitor.
@@ -33,6 +33,12 @@ SPEC = Command(
         "parks 'corral monitor' in a workspace there so the dashboard is always up,\n"
         "then attaches the herdr TUI (this process is replaced by herdr).\n"
         "\n"
+        "On a FRESH session it also opens an agent workspace for every existing\n"
+        "worktree under the worktrees dir, so 'corral start' rebuilds your whole\n"
+        "bench of agents in one go (--no-agents skips this). When the session is\n"
+        "already running it just reconnects — no agents are opened, since they are\n"
+        "already there.\n"
+        "\n"
         "With a remote target — from --remote or CORRAL_REMOTE, same syntax as\n"
         "'herdr --remote' — corral first bootstraps the other machine over SSH:\n"
         "installs corral there if missing, copies this config across (minus\n"
@@ -50,6 +56,13 @@ SPEC = Command(
         "default herdr session: `herdr --session corral` starts it if needed and\n"
         "attaches the existing one otherwise, so `start` always lands on the same\n"
         "session and the monitor survives disconnects.\n"
+        "\n"
+        "**Agents per worktree.** On a *fresh* session `start` also opens an agent\n"
+        "workspace (the same agent-left / two-terminals layout as `spawn`, using your\n"
+        "configured `CORRAL_AGENT`/`CORRAL_MODEL`) for every existing worktree under\n"
+        "`CORRAL_WORKTREES_DIR` — one command rebuilds your whole bench. When the\n"
+        "session is merely reconnected to, no agents are opened (they are already\n"
+        "running). `--no-agents` skips opening them even on a fresh start.\n"
         "\n"
         "**Local** (no target) — corral session + monitor here, then\n"
         "`herdr --session corral`.\n"
@@ -104,6 +117,18 @@ SPEC = Command(
             doc="Skip starting `corral monitor`.",
         ),
         Option(
+            "--no-agents",
+            help=(
+                "Don't open an agent workspace per existing worktree on a fresh\n"
+                "session (a reconnect never opens agents regardless)"
+            ),
+            doc=(
+                "Don't open an agent workspace for each existing worktree when the "
+                "corral session is started fresh. (Reconnecting to an already-running "
+                "session never opens agents, with or without this flag.)"
+            ),
+        ),
+        Option(
             "--no-install",
             help="Remote: don't try to install corral on the target",
             doc="Remote only: skip installing corral on the target.",
@@ -125,8 +150,9 @@ SPEC = Command(
         ),
     ),
     examples=(
-        Example("corral start", note="local herdr + monitor, then attach"),
+        Example("corral start", note="local herdr + monitor + an agent per worktree, then attach"),
         Example("corral start --remote devbox", note="bootstrap + attach devbox over SSH"),
+        Example("corral start --no-agents", note="don't reopen agents for existing worktrees"),
         Example("corral start --no-attach", note="just bring up the server + monitor"),
         Example("corral start --remote devbox --dry-run", note="show what it would do"),
     ),
@@ -166,25 +192,81 @@ def _seed_monitor(ctx: Context, dry_run: bool) -> None:
     ui.ok(f"monitor on {ui.C.bold}http://{host}:{port}{ui.C.reset} (workspace '{MONITOR_LABEL}')")
 
 
-def _seed_local(ctx: Context, no_monitor: bool, dry_run: bool) -> None:
-    """Bring up the corral session's server on THIS machine and seed the monitor
-    into it. Reused verbatim on the remote (via `corral start --no-attach`)."""
+def _worktree_label(worktree: str) -> str:
+    """A workspace label for an existing worktree: its branch's last segment
+    (matching how `spawn` labels), falling back to the checkout dir name."""
+    branch = gitutil.current_branch(worktree)
+    if branch and branch != "?":
+        return os.path.basename(branch)
+    return os.path.basename(worktree.rstrip(os.sep))
+
+
+def _seed_agents(ctx: Context, dry_run: bool) -> None:
+    """Open an agent workspace for every existing worktree under the worktrees
+    dir — the fresh-session counterpart to `spawn`, rebuilding the whole bench.
+
+    Only ever called on a fresh session (see `_seed_local`), so nothing is open
+    yet; `already_open` is still honored defensively. Per-worktree failures warn
+    and move on rather than aborting the whole start."""
+    worktrees = gitutil.discover_worktrees(ctx.settings.worktrees_dir)
+    if not worktrees:
+        if not dry_run:
+            ui.info("no existing worktrees to open")
+        return
+    agent = ctx.settings.agent
+    launch = launch_command(agent, ctx.settings.model, ctx.settings.permission_mode)
+    ratio = ctx.settings.ratio
+    for wt in worktrees:
+        label = _worktree_label(wt)
+        if dry_run:
+            ui.info(f"  herdr worktree open --path {wt} --label {label}   # + agent '{agent}'")
+            continue
+        try:
+            created = ctx.herdr.worktree_open(wt, label)
+        except CorralError as exc:
+            ui.warn(f"could not open worktree {wt} ({exc})")
+            continue
+        if created.already_open:
+            continue
+        split_agent_panes(ctx.herdr, created.root_pane_id, ratio)
+        if launch:
+            ctx.herdr.pane_run(created.root_pane_id, launch)
+        ui.ok(f"opened agent workspace {ui.C.bold}{created.workspace_id}{ui.C.reset} ({label})")
+
+
+def _seed_local(ctx: Context, no_monitor: bool, no_agents: bool, dry_run: bool) -> None:
+    """Bring up the corral session's server on THIS machine, seed the monitor
+    into it, and (on a fresh session only) open an agent per worktree. Reused
+    verbatim on the remote (via `corral start --no-attach`)."""
     if dry_run:
         ui.info(f"  herdr --session {SESSION_NAME} server   # only if it isn't already running")
         if not no_monitor:
             _seed_monitor(ctx, dry_run=True)
+        if not no_agents:
+            ui.info("  # on a fresh session, also open an agent per worktree:")
+            _seed_agents(ctx, dry_run=True)
         return
-    if ctx.herdr.session_running(SESSION_NAME):
+    # Freshness is decided BEFORE we start the server: a session that was
+    # already running is a reconnect (its agents are up), so we must not open a
+    # second agent per worktree on top of them.
+    was_running = ctx.herdr.session_running(SESSION_NAME)
+    if was_running:
         ui.info(f"herdr session '{SESSION_NAME}' already running — reusing it")
     socket = ctx.herdr.ensure_session_server(SESSION_NAME)
+    # Seed into the corral session's own server (its socket), not the default.
+    seed_ctx = Context(settings=ctx.settings, herdr=Herdr(socket_path=socket))
     if not no_monitor:
-        # Seed into the corral session's own server (its socket), not the default.
-        seed_ctx = Context(settings=ctx.settings, herdr=Herdr(socket_path=socket))
         _seed_monitor(seed_ctx, dry_run=False)
+    if no_agents:
+        return
+    if was_running:
+        ui.info("reconnecting to an existing session — not opening agents")
+    else:
+        _seed_agents(seed_ctx, dry_run=False)
 
 
-def _start_local(ctx: Context, no_monitor: bool, dry_run: bool) -> int:
-    _seed_local(ctx, no_monitor, dry_run)
+def _start_local(ctx: Context, no_monitor: bool, no_agents: bool, dry_run: bool) -> int:
+    _seed_local(ctx, no_monitor, no_agents, dry_run)
     if dry_run:
         ui.info(f"  exec herdr --session {SESSION_NAME}")
         return 0
@@ -202,6 +284,9 @@ def _start_remote(
     no_forward: bool,
     dry_run: bool,
 ) -> int:
+    # NB: agent-per-worktree happens on the *remote* — it runs its own
+    # `corral start --no-attach`, which fresh-starts its session and opens its
+    # own worktrees' agents. Nothing to do for agents on this side.
     ui.info(f"bootstrapping remote herdr session on {ui.C.bold}{target}{ui.C.reset}…")
 
     if not no_install:
@@ -238,6 +323,7 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
     target = str(args["remote"]).strip()
     no_attach = bool(args["no_attach"])
     no_monitor = bool(args["no_monitor"])
+    no_agents = bool(args["no_agents"])
     no_install = bool(args["no_install"])
     no_config_copy = bool(args["no_config_copy"])
     no_forward = bool(args["no_forward"])
@@ -252,11 +338,11 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
     # so the copied-config-with-CORRAL_REMOTE-stripped invocation corral runs on
     # the remote can't recurse back out over SSH.
     if no_attach:
-        _seed_local(ctx, no_monitor, dry_run)
+        _seed_local(ctx, no_monitor, no_agents, dry_run)
         return 0
 
     if not target:
-        return _start_local(ctx, no_monitor, dry_run)
+        return _start_local(ctx, no_monitor, no_agents, dry_run)
     return _start_remote(
         ctx, target, no_monitor, no_install, no_config_copy, no_forward, dry_run
     )

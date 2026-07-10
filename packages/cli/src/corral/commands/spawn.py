@@ -14,7 +14,7 @@ from ..cli import Argument, Command, Example, Option
 from ..herdr import require_deps
 from ..naming import branch_from_prompt
 from ..ui import CorralError
-from . import Context
+from . import Context, split_agent_panes
 
 LAYOUT = """\
 Layout (one herdr workspace per agent):
@@ -301,10 +301,9 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
     # external resources, and once the worktree is gone its cleanup.sh is gone
     # with it — but a cleanup failure must never block the rollback itself.
     try:
-        # 2) Split the root pane: agent left, right column takes (1 - ratio).
-        right_top = ctx.herdr.pane_split(left, direction="right", ratio=ratio)
-        # 3) Split the right column into two stacked terminals.
-        right_bottom = ctx.herdr.pane_split(right_top, direction="down", ratio="0.5")
+        # 2) Split the root pane into the agent layout: agent left (ratio of
+        #    the width), two stacked terminals in the right column.
+        right_top, right_bottom = split_agent_panes(ctx.herdr, left, ratio)
 
         # 4) Launch in the left pane. If the repo ships a .corral/setup.sh
         #    (present in the fresh worktree because it's checked out from the

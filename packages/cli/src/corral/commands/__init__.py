@@ -34,6 +34,7 @@ def _registry() -> Tuple[Registered, ...]:
     from . import (
         close,
         doctor,
+        end,
         focus,
         ls,
         monitor,
@@ -46,6 +47,7 @@ def _registry() -> Tuple[Registered, ...]:
 
     return (
         Registered(start.SPEC, start.run),
+        Registered(end.SPEC, end.run),
         Registered(spawn.SPEC, spawn.run),
         Registered(ls.SPEC, ls.run),
         Registered(focus.SPEC, focus.run),
@@ -88,6 +90,19 @@ def owned_workspaces(ctx: Context) -> List[Workspace]:
         for ws in ctx.herdr.workspace_list()
         if ws.is_corral_owned(ctx.settings.worktrees_dir)
     ]
+
+
+def split_agent_panes(herdr: Herdr, agent_pane: str, ratio: str) -> Tuple[str, str]:
+    """Build the corral agent layout around an existing (agent) root pane:
+    agent left at `ratio` of the width, two stacked terminals filling the
+    right column. Returns the (top, bottom) terminal pane ids.
+
+    Shared by `spawn` (fresh worktree) and `start` (reopening existing
+    worktrees) so both lay out identically.
+    """
+    right_top = herdr.pane_split(agent_pane, direction="right", ratio=ratio)
+    right_bottom = herdr.pane_split(right_top, direction="down", ratio="0.5")
+    return right_top, right_bottom
 
 
 def resolve_ref_or_current(ctx: Context, ref: str, example: str) -> str:

@@ -306,7 +306,7 @@ print "== _corral completion tests (zsh $ZSH_VERSION) =="
 
 expect_exact 'corral <TAB> lists all subcommands and aliases' \
   $WORK/stub-ok 'corral ' \
-  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start end spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 expect_exact 'corral spawn --<TAB> lists spawn long flags' \
   $WORK/stub-ok 'corral spawn --' \
@@ -402,7 +402,7 @@ expect_none_of 'corral resource acquire <TAB> degrades to empty when corral fail
 
 expect_exact 'corral help <TAB> completes subcommand names' \
   $WORK/stub-ok 'corral help ' \
-  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start end spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
   $WORK/stub-fail 'corral close ' \
@@ -410,7 +410,7 @@ expect_none_of 'corral close <TAB> degrades to empty when corral fails' \
 
 expect_exact 'static completion still works when corral fails' \
   $WORK/stub-fail 'corral ' \
-  start spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
+  start end spawn close ls list focus attach open ide prune clean resource res monitor ui doctor version help
 
 # --- plugin function cases ----------------------------------------------------------
 

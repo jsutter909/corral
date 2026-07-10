@@ -141,3 +141,36 @@ def origin_head(worktree: str) -> str:
 def is_ancestor(worktree: str, ancestor: str, descendant: str) -> bool:
     proc = _run(["merge-base", "--is-ancestor", ancestor, descendant], cwd=worktree)
     return proc.returncode == 0
+
+
+def discover_worktrees(worktrees_dir: str) -> List[str]:
+    """Every corral worktree checkout under `worktrees_dir`, sorted.
+
+    herdr lays these out as ``<worktrees_dir>/<repo>/<label>/`` — the same
+    two-level layout `resources.holder_for_worktree` assumes — and a directory
+    is a checkout when it holds a ``.git`` entry (a *file*, for linked
+    worktrees). Pure filesystem walk, no git or herdr server needed, so `start`
+    can reopen them and `end` can release their resources even when herdr is
+    down. Unreadable directories are skipped rather than fatal.
+    """
+    base = os.path.realpath(worktrees_dir)
+    if not os.path.isdir(base):
+        return []
+    found: List[str] = []
+    try:
+        repos = sorted(os.listdir(base))
+    except OSError:
+        return []
+    for repo in repos:
+        repo_dir = os.path.join(base, repo)
+        if not os.path.isdir(repo_dir):
+            continue
+        try:
+            labels = sorted(os.listdir(repo_dir))
+        except OSError:
+            continue
+        for label in labels:
+            wt = os.path.join(repo_dir, label)
+            if os.path.exists(os.path.join(wt, ".git")):
+                found.append(wt)
+    return found

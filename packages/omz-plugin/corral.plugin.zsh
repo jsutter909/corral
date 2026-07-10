@@ -39,6 +39,7 @@ fi
   local name target
   for name target in \
       cst 'corral start' \
+      cnd 'corral end' \
       csp 'corral spawn' \
       cls 'corral ls' \
       cfo 'corral focus' \

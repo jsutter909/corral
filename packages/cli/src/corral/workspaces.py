@@ -71,11 +71,14 @@ class Workspace:
 
 @dataclass(frozen=True)
 class WorktreeCreation:
-    """What `herdr worktree create` hands back — the raw materials of spawn."""
+    """What `herdr worktree create`/`open` hands back — the raw materials of a
+    workspace. `already_open` is only ever True for `open` (a worktree that
+    already had a workspace in this server); `create` always makes a fresh one."""
 
     workspace_id: str
     root_pane_id: str
     worktree_path: str
+    already_open: bool = False
 
 
 def resolve_workspace(ref: str, workspaces: List[Workspace]) -> Workspace:
