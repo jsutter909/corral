@@ -56,6 +56,7 @@ corral start --remote devbox                # same, but on a remote machine over
 # From your "command" pane in herdr:
 corral spawn ~/dev/app                      # new worktree + workspace, launches claude
 corral spawn ~/dev/app feature/checkout     # name the branch
+corral spawn ~/dev/app origin/feature/pr-42 # check out an existing (PR) branch
 corral spawn ~/dev/app --agent codex        # use a different agent
 corral spawn ~/dev/app --base main          # branch from a specific ref
 corral spawn ~/dev/app --prompt "fix tests" # hand the agent an opening prompt

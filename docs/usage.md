@@ -72,7 +72,7 @@ setup succeeds, and a failure stays visible in the pane. See
 | Arg | Meaning |
 | --- | --- |
 | `<repo>` | Any path inside the git repo to branch from (e.g. `~/dev/app` or `.`). corral resolves it to the repo root. |
-| `[branch]` | Branch name for the worktree. Default: with `--prompt`, `<prefix>/<name>` where `<name>` is generated from the prompt by the `claude` CLI (falling back to slugged prompt text, with a numeric suffix if the branch already exists); otherwise `<prefix>/<repo>-<timestamp>`. |
+| `[branch]` | Branch for the worktree. A new name is created; a branch that already exists — locally, or only on a remote (`origin/feature/x`) — is checked out into the worktree instead (handy for an open PR), and a remote branch gets a local tracking branch of the same name. The worktree and its workspace label are named after the branch. Default: with `--prompt`, `<prefix>/<name>` where `<name>` is generated from the prompt by the `claude` CLI (falling back to slugged prompt text, with a numeric suffix if the branch already exists); otherwise `<prefix>/<repo>-<timestamp>`. |
 
 **Options**
 
@@ -82,7 +82,7 @@ setup succeeds, and a failure stays visible in the pane. See
 | `-m`, `--model` `<name>` | `` (Claude's default) | Model for the Claude agent. Applies to the `claude` agent only; ignored (with a warning) for others. |
 | `-P`, `--permission-mode` `<mode>` | `` (Claude's default) | Claude permission/edit mode, e.g. `acceptEdits`, `plan`. `claude` agent only. |
 | `-p`, `--prompt` `<text>` | (none) | Initial prompt handed to the agent on launch, as its first positional argument. Ignored (with a warning) for `--agent none`. When `[branch]` is omitted, the branch is named after the prompt too. |
-| `-b`, `--base` `<ref>` | `` (HEAD) | Base ref the new worktree branches from. |
+| `-b`, `--base` `<ref>` | `` (HEAD) | Base ref a new branch is created from. Ignored when `[branch]` names a branch that already exists (local or remote). |
 | `-r`, `--ratio` `<0..1>` | `0.4` | Agent (left) pane share of the width. |
 | `-l`, `--label` `<text>` | derived from the branch name | herdr workspace label. |
 | `--no-focus` | — | Create the workspace without switching to it. |
@@ -91,6 +91,7 @@ setup succeeds, and a failure stays visible in the pane. See
 ```sh
 corral spawn ~/dev/app
 corral spawn ~/dev/app feature/checkout
+corral spawn ~/dev/app origin/feature/checkout                      # check out an existing (PR) branch
 corral spawn . bugfix/tax --base main --agent codex --ratio 0.55
 corral spawn ~/dev/app --model opus --permission-mode acceptEdits
 corral spawn ~/dev/app --prompt "fix the failing tax tests"         # branch: e.g. agent/fix-failing-tax-tests

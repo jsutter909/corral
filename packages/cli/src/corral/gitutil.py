@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Optional
+from typing import List, Optional
 
 
 def _run(args, cwd: Optional[str] = None) -> subprocess.CompletedProcess:
@@ -53,6 +53,45 @@ def branch_exists(repo: str, branch: str) -> bool:
 
 def ref_exists(worktree: str, ref: str) -> bool:
     proc = _run(["rev-parse", "--verify", "--quiet", ref], cwd=worktree)
+    return proc.returncode == 0
+
+
+def remotes(repo: str) -> List[str]:
+    """Configured remote names (e.g. ['origin']); empty outside a repo."""
+    proc = _run(["-C", repo, "remote"])
+    return proc.stdout.split() if proc.returncode == 0 else []
+
+
+def remote_ref(repo: str, branch: str) -> str:
+    """Resolve `branch` to a unique remote-tracking ref, or '' when there is
+    none (or it's ambiguous across remotes).
+
+    Accepts both a plain branch name — looked up across every remote,
+    preferring ``origin`` when more than one carries it — and a name already
+    qualified with its remote (``origin/feature/x``). The return value is a
+    ref like ``origin/feature/x`` suitable for use as a `git worktree` base.
+    """
+    rems = remotes(repo)
+    # Already qualified as <remote>/<name>? (handles slashed branch names too)
+    for r in rems:
+        prefix = f"{r}/"
+        if branch.startswith(prefix) and _remote_ref_exists(repo, r, branch[len(prefix):]):
+            return branch
+    # Plain name: collect the remotes that carry it, preferring origin.
+    matches = [r for r in rems if _remote_ref_exists(repo, r, branch)]
+    if not matches:
+        return ""
+    if "origin" in matches:
+        return f"origin/{branch}"
+    if len(matches) == 1:
+        return f"{matches[0]}/{branch}"
+    return ""  # ambiguous across remotes — don't guess
+
+
+def _remote_ref_exists(repo: str, remote: str, branch: str) -> bool:
+    proc = _run(
+        ["-C", repo, "show-ref", "--verify", "--quiet", f"refs/remotes/{remote}/{branch}"]
+    )
     return proc.returncode == 0
 
 
