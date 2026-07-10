@@ -146,8 +146,19 @@ _corral_git_refs() {
   _wanted refs expl 'git ref' compadd -a refs
 }
 
-_corral_new_branch() {
-  _message 'new branch name (default: <prefix>/<repo>-<timestamp>)'
+# spawn's [branch]: either a NEW name to create or an EXISTING local/remote
+# branch to check out (e.g. an open PR). Offer existing branches as candidates
+# — local heads and remote-tracking refs — plus a hint that any new name works
+# too. Repo dir is the spawn <repo> positional ($line[1]), like _corral_git_refs.
+_corral_spawn_branch() {
+  local dir=${line[1]:-.}
+  [[ -d $dir ]] || dir=.
+  local -a branches
+  branches=( ${(f)"$(command git -C $dir for-each-ref \\
+    --format='%(refname:short)' refs/heads refs/remotes 2>/dev/null)"} )
+  branches=( ${branches:#(*/|)HEAD} )
+  (( $#branches )) && _wanted branches expl 'existing branch' compadd -a branches
+  _message 'branch (existing to check out, or a new name to create)'
 }
 
 # Active workspaces from `corral ls --tsv` (columns: workspace, label, repo,

@@ -57,20 +57,28 @@ SPEC = Command(
             "branch",
             required=False,
             help=(
-                "Branch name for the worktree\n"
+                "Branch for the worktree: a new name to create, or an\n"
+                "existing local/remote branch to check out (e.g. an open PR)\n"
                 "(default: with --prompt, <prefix>/<name> where <name> is\n"
                 "generated from the prompt by the claude CLI, slugged\n"
                 "prompt text as fallback; otherwise <prefix>/<repo>-<timestamp>)"
             ),
             doc=(
-                "Branch name for the worktree. Default: with `--prompt`, "
-                "`<prefix>/<name>` where `<name>` is generated from the prompt by "
-                "the `claude` CLI (falling back to slugged prompt text, with a "
-                "numeric suffix if the branch already exists); otherwise "
-                "`<prefix>/<repo>-<timestamp>`."
+                "Branch for the worktree. A new name is created; a branch that "
+                "already exists — locally, or only on a remote "
+                "(`origin/feature/x`, or just `feature/x`) — is checked out "
+                "into the worktree instead (handy for an open PR), and a remote "
+                "branch gets a local tracking branch of the same name. spawn "
+                "fetches first, so a freshly pushed branch resolves by bare "
+                "name without the `origin/` prefix. The worktree and its "
+                "workspace label are named after the branch. Default: with "
+                "`--prompt`, `<prefix>/<name>` where `<name>` is generated from "
+                "the prompt by the `claude` CLI (falling back to slugged prompt "
+                "text, with a numeric suffix if the branch already exists); "
+                "otherwise `<prefix>/<repo>-<timestamp>`."
             ),
-            completion="_corral_new_branch",
-            value_label="new branch name",
+            completion="_corral_spawn_branch",
+            value_label="branch",
         ),
     ),
     options=(
@@ -134,8 +142,11 @@ SPEC = Command(
             short="-b",
             metavar="<ref>",
             setting="base",
-            help="Base ref to branch the worktree from",
-            doc="Base ref the new worktree branches from.",
+            help="Base ref to branch a new worktree from (ignored for an existing branch)",
+            doc=(
+                "Base ref a new branch is created from. Ignored when `[branch]` "
+                "names a branch that already exists (local or remote)."
+            ),
             completion="_corral_git_refs",
             value_hint="git ref",
         ),
@@ -171,6 +182,10 @@ SPEC = Command(
     examples=(
         Example("corral spawn ~/dev/app"),
         Example("corral spawn ~/dev/app feature/checkout"),
+        Example(
+            "corral spawn ~/dev/app origin/feature/checkout",
+            note="check out an existing (PR) branch",
+        ),
         Example("corral spawn . bugfix/tax --base main --agent codex --ratio 0.55"),
         Example("corral spawn ~/dev/app --model opus --permission-mode acceptEdits"),
         Example(
@@ -231,15 +246,52 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
     if not repo:
         raise CorralError(f"'{repo_arg}' is not inside a git repository")
 
-    # Default branch: named after the task when a prompt was given, otherwise
-    # timestamp + pid so parallel spawns in the same second still get distinct
-    # names. Prompt-derived names get a numeric suffix if the branch exists.
-    if not branch:
+    # An explicitly named branch may already exist — locally, or only on a
+    # remote (an open PR, a teammate's branch). In that case we check it out
+    # into the worktree rather than creating a fresh one; a brand-new name is
+    # created as before. An omitted branch is always freshly named: prompt-
+    # derived when a prompt was given (with a numeric suffix if it collides),
+    # otherwise timestamp + pid so parallel spawns stay distinct.
+    reused = ""  # "" = new branch; else the ref we reused (for the summary)
+    if branch:
+        if gitutil.branch_exists(repo, branch):
+            reused = branch
+            if base:
+                ui.warn(f"branch '{branch}' already exists; ignoring --base {base}")
+                base = ""
+        else:
+            # Not a local branch. It may live on a remote we haven't fetched
+            # yet (a freshly pushed PR branch) — fetch it so a bare name
+            # resolves without the origin/ prefix, then look again.
+            remote = gitutil.remote_ref(repo, branch)
+            if not remote:
+                ui.info(f"fetching to check for an existing '{branch}'…")
+                remote = gitutil.fetch_branch(repo, branch)
+            if remote:
+                # Create a local branch of the same name from the remote ref;
+                # git sets up tracking so the agent's push/pull just work. If
+                # the user typed the remote-qualified name, the local branch is
+                # the unqualified tail (origin/feature/x -> feature/x).
+                if remote == branch and "/" in branch:
+                    branch = branch.split("/", 1)[1]
+                reused = remote
+                if base and base != remote:
+                    ui.warn(f"tracking {remote} for '{branch}'; ignoring --base {base}")
+                base = remote
+    else:
         branch = _default_branch(ctx, repo, prompt)
+
+    # The worktree (and its workspace label) is named after the branch.
     if not label:
         label = os.path.basename(branch)
 
-    # 1) Create the git worktree + a fresh, isolated workspace.
+    if reused:
+        detail = "" if reused == branch else f" (tracking {reused})"
+        ui.info(f"checking out existing branch '{branch}'{detail}")
+
+    # 1) Create the git worktree + a fresh, isolated workspace. herdr checks
+    #    out an existing local branch (base is ignored then) and creates a new
+    #    branch from `base` otherwise.
     created = ctx.herdr.worktree_create(cwd=repo, branch=branch, label=label, base=base)
     ws, left, wt = created.workspace_id, created.root_pane_id, created.worktree_path
 
@@ -289,9 +341,15 @@ def run(ctx: Context, args: Dict[str, object]) -> int:
         raise
 
     ui.ok(f"agent workspace {ui.C.bold}{ws}{ui.C.reset} ({label})")
+    if reused == branch:
+        branch_line = f"    branch   {branch} (existing)"
+    elif reused:
+        branch_line = f"    branch   {branch} (tracking {reused})"
+    else:
+        branch_line = f"    branch   {branch}"
     summary = [
         f"    repo     {repo}",
-        f"    branch   {branch}",
+        branch_line,
         f"    worktree {wt}",
         f"    agent    {agent}",
     ]
