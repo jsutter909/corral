@@ -44,7 +44,7 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(0, "-V")
         for cmd in (
             "spawn", "close", "ls", "focus", "open", "ide",
-            "prune", "resource", "res", "doctor",
+            "prune", "resource", "res", "monitor", "ui", "doctor",
         ):
             self.assert_exit(0, cmd, "--help")
         self.assert_exit(0, "help", "spawn")
@@ -68,6 +68,9 @@ class ExitCodeTests(unittest.TestCase):
         self.assert_exit(1, "resource", "ls", "--json", "--tsv")
         self.assert_exit(1, "resource", "acquire", "ports", "extra")  # not add
         self.assert_exit(1, "resource", "release", "--all", "ports")
+        self.assert_exit(1, "monitor", "--port", "abc")  # non-numeric port
+        self.assert_exit(1, "monitor", "--port", "99999")  # out of range
+        self.assert_exit(1, "monitor", "--bogus")
 
     def test_ratio_is_validated_before_any_herdr_call(self):
         proc = self.assert_exit(1, "spawn", ".", "--ratio", "1.5")
@@ -79,13 +82,14 @@ class ExitCodeTests(unittest.TestCase):
 
     def test_help_lists_every_command(self):
         proc = self.assert_exit(0, "help")
-        for cmd in ("spawn", "ls", "focus", "open", "close", "prune", "resource", "doctor"):
+        for cmd in ("spawn", "ls", "focus", "open", "close", "prune", "resource", "monitor", "doctor"):
             self.assertIn(cmd, proc.stdout)
 
     def test_alias_help_matches_target(self):
         self.assertEqual(run("ide", "--help").stdout, run("open", "--help").stdout)
         self.assertEqual(run("list", "--help").stdout, run("ls", "--help").stdout)
         self.assertEqual(run("res", "--help").stdout, run("resource", "--help").stdout)
+        self.assertEqual(run("ui", "--help").stdout, run("monitor", "--help").stdout)
 
 
 if __name__ == "__main__":

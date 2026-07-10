@@ -36,6 +36,8 @@ corral resolves each setting in this order (later wins):
 | `CORRAL_BASE` | `--base` | `` (HEAD) | Base ref for new worktrees. |
 | `CORRAL_WORKTREES_DIR` | — | `~/.herdr/worktrees` | Where herdr checks out corral's worktrees; corral only ever destroys worktrees under this directory. |
 | `CORRAL_RESOURCES_DB` | — | `~/.local/state/corral/resources.db` | SQLite database backing `corral resource` pools and leases (one per machine — all workspaces share it). |
+| `CORRAL_MONITOR_HOST` | `--host` | `127.0.0.1` | Address `corral monitor` binds its web UI to. Defaults to loopback (local only); set to `0.0.0.0` to expose it on your network. |
+| `CORRAL_MONITOR_PORT` | `--port` | `8477` | Port `corral monitor` serves its web UI on. |
 | `CORRAL_CONFIG` | — | `~/.config/corral/config.sh` | Path to the config file itself. |
 
 ## Setting it up

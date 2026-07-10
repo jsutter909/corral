@@ -58,6 +58,7 @@ corral spawn ~/dev/app --base main          # branch from a specific ref
 corral spawn ~/dev/app --prompt "fix tests" # hand the agent an opening prompt
 
 corral ls                                   # see what's running
+corral monitor                               # web dashboard at http://127.0.0.1:8477
 corral focus checkout                        # jump to an agent by label or id
 corral open checkout                         # open the worktree in VS Code/Cursor
 corral close                                 # tear down the workspace you're in
@@ -71,6 +72,7 @@ corral doctor                                # check deps + update to the latest
 | --- | --- |
 | `corral spawn <repo> [branch]` | Create an isolated worktree + workspace and launch an agent. |
 | `corral ls [--json]` | List active agent workspaces (id, label, branch, status, path). |
+| `corral monitor` | Serve a local web dashboard to monitor agents + resources and manage them (spawn/focus/close/release). |
 | `corral focus <workspace>` | Switch focus to an agent by id or label (alias: `attach`). |
 | `corral open [workspace]` | Open your IDE (VS Code or Cursor) in an agent's worktree — via Remote-SSH links when the herdr session is remote (alias: `ide`). |
 | `corral close [workspace]` | Remove an agent's worktree and close its workspace. |
